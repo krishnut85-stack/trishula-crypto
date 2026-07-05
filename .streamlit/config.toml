@@ -1,0 +1,13 @@
+# Trishula Quant dashboard — dark terminal theme (matches the cockpit palette)
+[theme]
+base = "dark"
+primaryColor = "#ef7d4b"
+backgroundColor = "#070a09"
+secondaryBackgroundColor = "#0f1412"
+textColor = "#cdd6d1"
+font = "monospace"
+
+[server]
+headless = true
+address = "0.0.0.0"
+port = 8502
