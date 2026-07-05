@@ -206,9 +206,18 @@ class TrishulaLive:
                         base = h["equity"]
                         break
                 day_pnl = eq - base
+                # LIVE win rate from actual closed paper trades; falls back to the
+                # validated backtest number until the first trade closes
+                closed = [t for t in pf.trades if t.get("action") == "close"]
+                wins = [t for t in closed if t.get("pnl", 0) > 0]
+                if closed:
+                    win_val, win_kind = round(len(wins) / len(closed) * 100, 1), "live"
+                else:
+                    win_val, win_kind = (meta["proven_win"] or None), "backtest"
             else:
                 eq, cap = meta["capital"], meta["capital"]
                 day_pnl = 0.0
+                win_val, win_kind = (meta["proven_win"] or None), "backtest"
             green = sum(1 for x in positions if x["pnl"] > 0)
             profs.append({
                 "key": key, "name": meta["name"], "desc": meta["desc"],
@@ -216,7 +225,7 @@ class TrishulaLive:
                 "pnl_pct": round((eq / cap - 1) * 100, 2) if cap else 0.0,
                 "day_pnl": round(day_pnl, 0), "cash": round(pf.cash if (key == "trend" and pf) else cap, 0),
                 "positions": positions, "watch": watch, "universe": universe,
-                "win": meta["proven_win"] or None, "win_kind": "backtest",
+                "win": win_val, "win_kind": win_kind,
                 "win_open": round(green / len(positions) * 100) if positions else None,
                 "proven_win": meta["proven_win"], "proven_ret": meta["proven_ret"],
                 "pf": None, "buys": [], "sells": [],
