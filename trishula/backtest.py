@@ -18,10 +18,15 @@ from __future__ import annotations
 import statistics
 from typing import Callable, List
 
-from .history import Candle, PERIODS_PER_YEAR
+from .history import Candle, PERIODS_PER_YEAR, RES_SECONDS
 
 # ~0.059% per side = 0.05% taker fee + 18% GST on the fee
 DEFAULT_COST_PER_SIDE_PCT = 0.059
+
+# Perps charge funding every 8h. We can't fetch historical funding here, so
+# validation models it as a conservative CONSTANT drag on any held position
+# (bps of notional per 8h). Default 0 keeps the plain backtest unchanged.
+SECONDS_PER_FUNDING = 8 * 3600
 
 
 def _max_drawdown(equity: List[float]) -> float:
@@ -39,6 +44,7 @@ def run_backtest(
     resolution: str = "1h",
     cost_per_side_pct: float = DEFAULT_COST_PER_SIDE_PCT,
     allow_short: bool = True,
+    funding_bps_per_8h: float = 0.0,
 ) -> dict:
     n = len(candles)
     if n < 3 or len(positions) != n:
@@ -47,6 +53,9 @@ def run_backtest(
     closes = [c.c for c in candles]
     cps = cost_per_side_pct / 100.0
     pos = [p if allow_short else max(0, p) for p in positions]
+    # funding drag per bar = (bps/8h) scaled by how much of an 8h window a bar spans
+    bar_secs = RES_SECONDS.get(resolution, 3600)
+    funding_per_bar = (funding_bps_per_8h / 10000.0) * (bar_secs / SECONDS_PER_FUNDING)
 
     equity, gross_equity = 1.0, 1.0
     eq_curve = [1.0]
@@ -75,7 +84,7 @@ def run_backtest(
         cost = abs(p - prev) * cps
         r = closes[i + 1] / closes[i] - 1
         gross = p * r
-        net = gross - cost
+        net = gross - cost - funding_per_bar * abs(p)
 
         gross_equity *= (1 + gross)
         equity *= (1 + net)

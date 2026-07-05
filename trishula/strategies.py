@@ -129,3 +129,11 @@ def default_pool() -> List[Callable]:
         donchian_breakout(96),
         bollinger_reversion(20, 2.0),
     ]
+
+
+def by_name(name: str) -> Callable:
+    """Return a strategy builder-instance from the pool by its __name__."""
+    pool = {s.__name__: s for s in default_pool()}
+    if name not in pool:
+        raise KeyError(f"unknown strategy {name!r}; choices: {sorted(pool)}")
+    return pool[name]
