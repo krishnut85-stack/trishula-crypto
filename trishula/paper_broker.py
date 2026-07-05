@@ -29,6 +29,7 @@ class PaperPortfolio:
         self.last_bar: Dict[str, int] = {}
         self.last_prices: Dict[str, float] = {}
         self.fetch_fails: Dict[str, int] = {}   # consecutive failed fetches per symbol
+        self.stopped: Dict[str, int] = {}        # sym -> side we stopped out of (block re-entry)
         self.created: Optional[int] = None
         self.updated: Optional[int] = None
 
@@ -48,6 +49,7 @@ class PaperPortfolio:
         p.last_bar = d.get("last_bar", {})
         p.last_prices = d.get("last_prices", {})
         p.fetch_fails = d.get("fetch_fails", {})
+        p.stopped = d.get("stopped", {})
         p.created = d.get("created")
         p.updated = d.get("updated")
         return p
@@ -65,7 +67,7 @@ class PaperPortfolio:
                 "realized": self.realized, "trades": self.trades[-2000:],
                 "equity_history": self.equity_history[-5000:],
                 "last_bar": self.last_bar, "last_prices": self.last_prices,
-                "fetch_fails": self.fetch_fails,
+                "fetch_fails": self.fetch_fails, "stopped": self.stopped,
                 "created": self.created, "updated": self.updated,
             }, fh, indent=2)
 

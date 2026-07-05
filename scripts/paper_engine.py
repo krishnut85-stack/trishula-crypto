@@ -81,6 +81,8 @@ def main() -> int:
     ap.add_argument("--top", type=int, default=20,
                     help="trade the top-N liquid perps by 24h volume (default 20)")
     ap.add_argument("--symbols", default="", help="comma list to override the universe")
+    ap.add_argument("--stop", type=float, default=8.0,
+                    help="hard stop-loss %% per position; 0 disables (default 8)")
     args = ap.parse_args()
 
     if args.status:
@@ -166,10 +168,35 @@ def main() -> int:
                 if pf.set_position(s, 0, px, now, 0.0) is not None:
                     acted.append(f"{s}->FLAT(stale {pf.fetch_fails[s]}x)")
             continue
+
+        price = prices[s]
+        cur = pf.positions.get(s, {}).get("side", 0)
+
+        # STOP-LOSS (checked every run, before the new-bar gate): cut any position
+        # whose unrealised loss exceeds --stop %, regardless of the Donchian signal.
+        if args.stop > 0 and cur != 0:
+            entry = pf.positions[s]["entry"]
+            upnl_pct = cur * (price / entry - 1) * 100 if entry else 0.0
+            if upnl_pct <= -args.stop:
+                pf.set_position(s, 0, price, now, 0.0)
+                pf.stopped[s] = cur          # block re-entry this direction until signal flips
+                pf.last_bar[s] = bars[s]
+                acted.append(f"{s}->STOP({upnl_pct:.0f}%)")
+                continue
+
         # only act on a NEW bar (avoid double-processing within the same hour)
         if pf.last_bar.get(s) == bars[s]:
             continue
-        changed = pf.set_position(s, signals[s], prices[s], now, sizing_equity * weight)
+        target = signals[s]
+        # don't re-enter the same direction we were just stopped out of…
+        if target != 0 and pf.stopped.get(s) == target:
+            pf.last_bar[s] = bars[s]
+            continue
+        # …but once the signal flips (or goes flat), clear the stop block
+        if pf.stopped.get(s) is not None and target != pf.stopped.get(s):
+            pf.stopped.pop(s, None)
+
+        changed = pf.set_position(s, target, price, now, sizing_equity * weight)
         pf.last_bar[s] = bars[s]
         if changed is not None:
             acted.append(f"{s}->{ {1:'LONG',0:'FLAT',-1:'SHORT'}[changed] }")
