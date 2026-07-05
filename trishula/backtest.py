@@ -8,8 +8,10 @@ paper equity curve. Costs are charged on every position change:
 
 A high-churn strategy is therefore correctly penalised. Results report BOTH
 gross (before costs) and net (after costs) so the cost drag is visible — the
-same discipline Garuda uses. This is a coarse test (bar close-to-close, no
-intraday stops/funding) and is NOT a guarantee of future results.
+same discipline Garuda uses. Individual trades are recorded (side, entry/exit
+price, pnl, bars held) so the dashboard can show real closed trades. This is a
+coarse test (bar close-to-close, no intraday stops/funding) and is NOT a
+guarantee of future results.
 """
 from __future__ import annotations
 
@@ -49,10 +51,24 @@ def run_backtest(
     equity, gross_equity = 1.0, 1.0
     eq_curve = [1.0]
     bar_net_returns: List[float] = []
-    trades: List[float] = []
+    trades: List[dict] = []
 
     prev = 0
-    seg_pos, seg_gross = 0, 1.0
+    seg_pos, seg_gross, seg_start = 0, 1.0, 0
+
+    def close_segment(exit_idx: int) -> None:
+        if seg_pos == 0:
+            return
+        pnl = (seg_gross - 1) - 2 * cps * abs(seg_pos)
+        trades.append({
+            "side": "LONG" if seg_pos > 0 else "SHORT",
+            "entry": closes[seg_start],
+            "exit": closes[exit_idx],
+            "entry_t": candles[seg_start].t,
+            "exit_t": candles[exit_idx].t,
+            "bars": exit_idx - seg_start,
+            "pnl_pct": pnl * 100,
+        })
 
     for i in range(n - 1):
         p = pos[i]
@@ -67,9 +83,8 @@ def run_backtest(
         bar_net_returns.append(net)
 
         if p != seg_pos:
-            if seg_pos != 0:
-                trades.append((seg_gross - 1) - 2 * cps * abs(seg_pos))
-            seg_pos, seg_gross = p, 1.0
+            close_segment(i)              # exit prior segment at close[i]
+            seg_pos, seg_gross, seg_start = p, 1.0, i
         if seg_pos != 0:
             seg_gross *= (1 + seg_pos * r)
         prev = p
@@ -78,13 +93,12 @@ def run_backtest(
     if prev != 0:
         equity *= (1 - abs(prev) * cps)
         eq_curve[-1] = equity
-        if seg_pos != 0:
-            trades.append((seg_gross - 1) - 2 * cps * abs(seg_pos))
+        close_segment(n - 1)
 
-    wins = [t for t in trades if t > 0]
-    losses = [t for t in trades if t <= 0]
-    gross_win = sum(wins)
-    gross_loss = -sum(losses)
+    wins = [t for t in trades if t["pnl_pct"] > 0]
+    losses = [t for t in trades if t["pnl_pct"] <= 0]
+    gross_win = sum(t["pnl_pct"] for t in wins)
+    gross_loss = -sum(t["pnl_pct"] for t in losses)
 
     sd = statistics.pstdev(bar_net_returns) if len(bar_net_returns) > 1 else 0.0
     ppy = PERIODS_PER_YEAR.get(resolution, 8760)
@@ -104,6 +118,7 @@ def run_backtest(
         "win_rate_pct": (len(wins) / len(trades) * 100) if trades else None,
         "profit_factor": (gross_win / gross_loss) if gross_loss > 0 else None,
         "equity_curve": eq_curve,
+        "trade_list": trades,
         "cost_per_side_pct": cost_per_side_pct,
     }
 

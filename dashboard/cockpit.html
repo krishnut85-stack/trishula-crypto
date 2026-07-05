@@ -4,535 +4,432 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Trishula Cockpit</title>
-<style>html,body{margin:0}</style>
-</head>
-<body>
 <style>
   :root {
-    --bg: #eef1ef;
-    --surface: #ffffff;
-    --surface-2: #f5f8f6;
-    --border: #d9e0dc;
-    --text: #14201b;
-    --muted: #5f6d67;
-    --faint: #8a958f;
-    --accent: #d8572a;
-    --pos: #159a5b;
-    --neg: #d0353b;
-    --warn: #b9790c;
-    --grid: rgba(0,0,0,0.06);
-    --glow: rgba(21,154,91,0.0);
-    --mono: ui-monospace, "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, Consolas, monospace;
+    --bg:#eef1ef; --surface:#fff; --surface-2:#f5f8f6; --border:#d9e0dc;
+    --text:#14201b; --muted:#5f6d67; --faint:#8a958f; --accent:#d8572a;
+    --pos:#159a5b; --neg:#d0353b; --warn:#b9790c; --grid:rgba(0,0,0,0.06);
+    --mono:ui-monospace,"SF Mono","JetBrains Mono","Cascadia Code",Menlo,Consolas,monospace;
   }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #070a09;
-      --surface: #0f1412;
-      --surface-2: #0b100e;
-      --border: #1c2521;
-      --text: #cdd6d1;
-      --muted: #7c8983;
-      --faint: #55625c;
-      --accent: #ef7d4b;
-      --pos: #37d07f;
-      --neg: #e5484d;
-      --warn: #f5a524;
-      --grid: rgba(255,255,255,0.05);
-      --glow: rgba(55,208,127,0.10);
-    }
-  }
-  :root[data-theme="light"] {
-    --bg: #eef1ef; --surface: #ffffff; --surface-2: #f5f8f6; --border: #d9e0dc;
-    --text: #14201b; --muted: #5f6d67; --faint: #8a958f; --accent: #d8572a;
-    --pos: #159a5b; --neg: #d0353b; --warn: #b9790c; --grid: rgba(0,0,0,0.06);
-    --glow: rgba(21,154,91,0.0);
-  }
-  :root[data-theme="dark"] {
-    --bg: #070a09; --surface: #0f1412; --surface-2: #0b100e; --border: #1c2521;
-    --text: #cdd6d1; --muted: #7c8983; --faint: #55625c; --accent: #ef7d4b;
-    --pos: #37d07f; --neg: #e5484d; --warn: #f5a524; --grid: rgba(255,255,255,0.05);
-    --glow: rgba(55,208,127,0.10);
-  }
+  @media (prefers-color-scheme:dark){:root{
+    --bg:#070a09; --surface:#0f1412; --surface-2:#0b100e; --border:#1c2521;
+    --text:#cdd6d1; --muted:#7c8983; --faint:#55625c; --accent:#ef7d4b;
+    --pos:#37d07f; --neg:#e5484d; --warn:#f5a524; --grid:rgba(255,255,255,0.05);
+  }}
+  :root[data-theme="light"]{--bg:#eef1ef;--surface:#fff;--surface-2:#f5f8f6;--border:#d9e0dc;--text:#14201b;--muted:#5f6d67;--faint:#8a958f;--accent:#d8572a;--pos:#159a5b;--neg:#d0353b;--warn:#b9790c;--grid:rgba(0,0,0,0.06);}
+  :root[data-theme="dark"]{--bg:#070a09;--surface:#0f1412;--surface-2:#0b100e;--border:#1c2521;--text:#cdd6d1;--muted:#7c8983;--faint:#55625c;--accent:#ef7d4b;--pos:#37d07f;--neg:#e5484d;--warn:#f5a524;--grid:rgba(255,255,255,0.05);}
 
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.4;
-    -webkit-font-smoothing: antialiased;
-  }
-  .wrap { max-width: 1180px; margin: 0 auto; padding: 16px; }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--mono);font-size:13px;line-height:1.4;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1180px;margin:0 auto;padding:16px;}
+  .tnum{font-variant-numeric:tabular-nums;}
+  .lbl{text-transform:uppercase;letter-spacing:.12em;font-size:10px;color:var(--muted);font-weight:600;}
+  .pos{color:var(--pos);} .neg{color:var(--neg);} .warn{color:var(--warn);}
 
-  .tnum { font-variant-numeric: tabular-nums; }
-  .lbl {
-    text-transform: uppercase; letter-spacing: 0.12em;
-    font-size: 10px; color: var(--muted); font-weight: 600;
-  }
-  .pos { color: var(--pos); }
-  .neg { color: var(--neg); }
-  .warn { color: var(--warn); }
+  .statusbar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:10px 14px;border:1px solid var(--border);background:var(--surface);border-radius:8px;}
+  .brand{display:flex;align-items:center;gap:10px;margin-right:auto;}
+  .mark{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-size:15px;background:color-mix(in srgb,var(--accent) 18%,transparent);border:1px solid color-mix(in srgb,var(--accent) 55%,transparent);}
+  .brand h1{font-size:14px;margin:0;letter-spacing:.18em;font-weight:700;}
+  .brand span{color:var(--faint);font-size:10px;letter-spacing:.12em;}
+  .pill{display:inline-flex;align-items:center;gap:6px;padding:4px 9px;border-radius:999px;font-size:10px;letter-spacing:.1em;text-transform:uppercase;border:1px solid var(--border);color:var(--muted);background:var(--surface-2);}
+  .pill.live{color:var(--pos);border-color:color-mix(in srgb,var(--pos) 45%,var(--border));}
+  .pill.src-real{color:var(--pos);border-color:color-mix(in srgb,var(--pos) 45%,var(--border));}
+  .pill.src-syn,.pill.src-illus{color:var(--warn);border-color:color-mix(in srgb,var(--warn) 45%,var(--border));}
+  .dot{width:6px;height:6px;border-radius:50%;background:currentColor;}
+  .pill.live .dot{animation:blink 1.6s steps(2,jump-none) infinite;}
+  @keyframes blink{50%{opacity:.25;}}
 
-  /* ---- top status bar ---- */
-  .statusbar {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    padding: 10px 14px; border: 1px solid var(--border);
-    background: var(--surface); border-radius: 8px;
-  }
-  .brand { display: flex; align-items: center; gap: 10px; margin-right: auto; }
-  .mark {
-    width: 26px; height: 26px; border-radius: 50%;
-    display: grid; place-items: center; font-size: 15px;
-    background: color-mix(in srgb, var(--accent) 18%, transparent);
-    border: 1px solid color-mix(in srgb, var(--accent) 55%, transparent);
-  }
-  .brand h1 { font-size: 14px; margin: 0; letter-spacing: 0.18em; font-weight: 700; }
-  .brand span { color: var(--faint); font-size: 10px; letter-spacing: 0.12em; }
-  .pill {
-    display: inline-flex; align-items: center; gap: 6px;
-    padding: 4px 9px; border-radius: 999px; font-size: 10px;
-    letter-spacing: 0.1em; text-transform: uppercase;
-    border: 1px solid var(--border); color: var(--muted); background: var(--surface-2);
-  }
-  .pill.live { color: var(--pos); border-color: color-mix(in srgb, var(--pos) 45%, var(--border)); }
-  .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
-  .pill.live .dot { animation: blink 1.6s steps(2, jump-none) infinite; }
-  @keyframes blink { 50% { opacity: 0.25; } }
+  .banner{margin:10px 0 0;padding:8px 12px;border-radius:6px;font-size:11px;}
+  .banner.real{color:var(--pos);background:color-mix(in srgb,var(--pos) 12%,transparent);border:1px solid color-mix(in srgb,var(--pos) 30%,transparent);}
+  .banner.warn{color:var(--warn);background:color-mix(in srgb,var(--warn) 12%,transparent);border:1px solid color-mix(in srgb,var(--warn) 30%,transparent);}
 
-  .disclaimer {
-    margin: 10px 0 0; padding: 8px 12px; border-radius: 6px;
-    font-size: 11px; color: var(--warn);
-    background: color-mix(in srgb, var(--warn) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--warn) 30%, transparent);
-  }
+  .verdict{margin-top:12px;padding:12px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);display:flex;gap:12px;align-items:baseline;flex-wrap:wrap;}
+  .verdict .tag{font-weight:700;letter-spacing:.1em;padding:3px 10px;border-radius:5px;font-size:12px;}
+  .verdict .tag.good{color:var(--pos);background:color-mix(in srgb,var(--pos) 15%,transparent);}
+  .verdict .tag.bad{color:var(--neg);background:color-mix(in srgb,var(--neg) 15%,transparent);}
+  .verdict .tag.hold{color:var(--warn);background:color-mix(in srgb,var(--warn) 15%,transparent);}
+  .verdict .expl{color:var(--muted);font-size:12px;flex:1;min-width:220px;}
 
-  /* ---- grid ---- */
-  .grid { display: grid; gap: 12px; margin-top: 12px; }
-  .row-2 { grid-template-columns: 1.35fr 1fr; }
-  @media (max-width: 820px) { .row-2 { grid-template-columns: 1fr; } }
+  .grid{display:grid;gap:12px;margin-top:12px;}
+  .row-2{grid-template-columns:1.35fr 1fr;}
+  @media (max-width:820px){.row-2{grid-template-columns:1fr;}}
+  .panel{border:1px solid var(--border);background:var(--surface);border-radius:8px;padding:14px;min-width:0;}
+  .panel h2{font-size:11px;margin:0 0 12px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;display:flex;align-items:center;gap:8px;}
+  .panel h2 .sub{color:var(--faint);font-weight:500;letter-spacing:.08em;margin-left:auto;}
 
-  .panel {
-    border: 1px solid var(--border); background: var(--surface);
-    border-radius: 8px; padding: 14px; min-width: 0;
-  }
-  .panel h2 {
-    font-size: 11px; margin: 0 0 12px; letter-spacing: 0.14em;
-    text-transform: uppercase; color: var(--text); font-weight: 700;
-    display: flex; align-items: center; gap: 8px;
-  }
-  .panel h2 .sub { color: var(--faint); font-weight: 500; letter-spacing: 0.08em; margin-left: auto; }
+  .hero-pnl{font-size:clamp(28px,5.5vw,42px);font-weight:700;line-height:1;}
+  .hero-meta{display:flex;gap:8px;flex-wrap:wrap;margin:8px 0 14px;color:var(--muted);font-size:11px;}
+  .chip{padding:2px 7px;border:1px solid var(--border);border-radius:4px;background:var(--surface-2);}
+  .stat-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .stat{padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface-2);}
+  .stat .v{font-size:16px;font-weight:700;margin-top:3px;}
+  .equity-wrap{margin-top:12px;}
+  .cv-holder{position:relative;width:100%;min-width:0;}
+  canvas{display:block;width:100%;height:auto;border-radius:6px;}
 
-  /* ---- scorecard ---- */
-  .hero-pnl { font-size: clamp(30px, 6vw, 46px); font-weight: 700; letter-spacing: 0.02em; line-height: 1; }
-  .hero-meta { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0 14px; color: var(--muted); font-size: 11px; }
-  .chip { padding: 2px 7px; border: 1px solid var(--border); border-radius: 4px; background: var(--surface-2); }
-  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-  .stat { padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--surface-2); }
-  .stat .v { font-size: 17px; font-weight: 700; margin-top: 3px; }
-  .stat .v small { font-size: 10px; color: var(--faint); font-weight: 500; }
-  .equity-wrap { margin-top: 12px; }
+  .win{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;padding:9px 0;border-top:1px dashed var(--border);}
+  .win:first-child{border-top:none;}
+  .win .sym{font-weight:700;}
+  .win .path{color:var(--muted);font-size:11px;}
+  .win .mult{font-weight:700;text-align:right;}
+  .win .mult small{display:block;color:var(--faint);font-size:10px;font-weight:500;}
+  .venue{font-size:9px;color:var(--faint);letter-spacing:.08em;}
 
-  /* ---- top wins ---- */
-  .win { display: grid; grid-template-columns: auto 1fr auto; gap: 10px; align-items: center;
-         padding: 9px 0; border-top: 1px dashed var(--border); }
-  .win:first-of-type { border-top: none; }
-  .win .sym { font-weight: 700; }
-  .win .path { color: var(--muted); font-size: 11px; }
-  .win .mult { font-weight: 700; text-align: right; }
-  .win .mult small { display: block; color: var(--faint); font-size: 10px; font-weight: 500; }
-  .venue { font-size: 9px; color: var(--faint); letter-spacing: 0.08em; }
+  table.board{width:100%;border-collapse:collapse;font-size:12px;}
+  table.board th,table.board td{text-align:right;padding:7px 8px;border-bottom:1px dashed var(--border);}
+  table.board th{color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-size:9px;font-weight:600;}
+  table.board td:first-child,table.board th:first-child{text-align:left;}
+  table.board tr.winner td{background:color-mix(in srgb,var(--pos) 9%,transparent);}
+  table.board tr.winner td:first-child{font-weight:700;color:var(--pos);}
 
-  /* ---- readouts beside canvases ---- */
-  .canvas-panel { display: grid; grid-template-columns: 1fr 160px; gap: 14px; }
-  @media (max-width: 720px) { .canvas-panel { grid-template-columns: 1fr; } }
-  .cv-holder { position: relative; width: 100%; min-width: 0; }
-  canvas { display: block; width: 100%; height: auto; border-radius: 6px; }
-  .readout { display: flex; flex-direction: column; gap: 10px; }
-  .readout .kv { display: flex; justify-content: space-between; align-items: baseline;
-                 border-bottom: 1px dashed var(--border); padding-bottom: 5px; }
-  .readout .kv b { font-weight: 700; font-size: 14px; }
-  .legend { display: flex; flex-direction: column; gap: 5px; margin-top: 4px; }
-  .legend div { display: flex; align-items: center; gap: 7px; font-size: 10px; color: var(--muted); }
-  .swatch { width: 9px; height: 9px; border-radius: 50%; }
-  .note { font-size: 10px; color: var(--faint); margin-top: 10px; letter-spacing: 0.04em; }
+  .canvas-panel{display:grid;grid-template-columns:1fr 165px;gap:14px;}
+  @media (max-width:720px){.canvas-panel{grid-template-columns:1fr;}}
+  .readout{display:flex;flex-direction:column;gap:9px;}
+  .readout .kv{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1px dashed var(--border);padding-bottom:5px;}
+  .readout .kv b{font-weight:700;font-size:14px;}
+  .legend{display:flex;flex-direction:column;gap:5px;margin-top:4px;}
+  .legend div{display:flex;align-items:center;gap:7px;font-size:10px;color:var(--muted);}
+  .swatch{width:9px;height:9px;border-radius:2px;}
+  .note{font-size:10px;color:var(--faint);margin-top:10px;letter-spacing:.03em;}
 
-  footer {
-    margin-top: 14px; padding: 10px 14px; border: 1px solid var(--border);
-    background: var(--surface); border-radius: 8px; color: var(--muted);
-    font-size: 10px; letter-spacing: 0.1em; text-transform: uppercase;
-    display: flex; gap: 14px; flex-wrap: wrap; align-items: center;
-  }
-  footer .sep { color: var(--faint); }
-  .theme-btn {
-    margin-left: auto; background: var(--surface-2); border: 1px solid var(--border);
-    color: var(--muted); font-family: var(--mono); font-size: 10px; letter-spacing: 0.1em;
-    padding: 4px 10px; border-radius: 5px; cursor: pointer; text-transform: uppercase;
-  }
-  .theme-btn:hover { color: var(--text); border-color: var(--accent); }
-  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-  @media (prefers-reduced-motion: reduce) { .pill.live .dot { animation: none; } }
+  footer{margin-top:14px;padding:10px 14px;border:1px solid var(--border);background:var(--surface);border-radius:8px;color:var(--muted);font-size:10px;letter-spacing:.1em;text-transform:uppercase;display:flex;gap:14px;flex-wrap:wrap;align-items:center;}
+  footer .sep{color:var(--faint);}
+  .theme-btn{margin-left:auto;background:var(--surface-2);border:1px solid var(--border);color:var(--muted);font-family:var(--mono);font-size:10px;letter-spacing:.1em;padding:4px 10px;border-radius:5px;cursor:pointer;text-transform:uppercase;}
+  .theme-btn:hover{color:var(--text);border-color:var(--accent);}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;}
+  @media (prefers-reduced-motion:reduce){.pill.live .dot{animation:none;}}
 </style>
-
+</head>
+<body>
 <div class="wrap">
   <div class="statusbar">
     <div class="brand">
       <div class="mark">🔱</div>
-      <div>
-        <h1>TRISHULA</h1>
-        <span>CRYPTO COCKPIT · V100</span>
-      </div>
+      <div><h1>TRISHULA</h1><span>CRYPTO COCKPIT · BACKTEST</span></div>
     </div>
     <span class="pill live"><span class="dot"></span> PAPER</span>
-    <span class="pill">TESTNET</span>
-    <span class="pill">DELTA · INDIA</span>
-    <span class="pill">SESSION <span class="tnum" id="round">#0142</span></span>
-    <span class="pill tnum" id="clock">--:--:-- UTC</span>
+    <span class="pill" id="p-src">—</span>
+    <span class="pill" id="p-syms">—</span>
+    <span class="pill" id="p-res">—</span>
+    <span class="pill tnum" id="p-gen">—</span>
   </div>
 
-  <p class="disclaimer">
-    ⚠ PAPER · ILLUSTRATIVE DATA — this is a layout preview, not a performance claim.
-    The live build wires every panel to real Delta&nbsp;Exchange&nbsp;India data. No live orders are placed.
-  </p>
+  <p class="banner warn" id="banner">Loading…</p>
 
-  <!-- Row 1: scorecard + top wins -->
+  <div class="verdict">
+    <span class="tag" id="v-tag">—</span>
+    <b id="v-strat">—</b>
+    <span class="expl" id="v-expl"></span>
+  </div>
+
+  <!-- scorecard + top trades -->
   <div class="grid row-2">
     <div class="panel">
-      <h2>Paper P&amp;L · Track Record <span class="sub">crypto perps + options</span></h2>
-      <div class="hero-pnl tnum pos" id="pnl">+$1,284.60</div>
+      <h2>Winning Strategy · Paper P&amp;L <span class="sub" id="sc-symbol">—</span></h2>
+      <div class="hero-pnl tnum" id="sc-net">—</div>
       <div class="hero-meta">
-        <span class="chip">realised · paper</span>
-        <span class="chip tnum">218 trades</span>
-        <span class="chip tnum">58% WR</span>
-        <span class="chip">Sharpe <span class="tnum">1.6</span> <span style="color:var(--faint)">illus.</span></span>
+        <span class="chip">edge vs hold <b class="tnum" id="sc-edge">—</b></span>
+        <span class="chip tnum" id="sc-trades">— trades</span>
+        <span class="chip tnum" id="sc-wr">— WR</span>
+        <span class="chip">PF <span class="tnum" id="sc-pf">—</span></span>
       </div>
       <div class="stat-row">
-        <div class="stat"><div class="lbl">Equity</div><div class="v tnum">$11,284<small>/10k</small></div></div>
-        <div class="stat"><div class="lbl">Session</div><div class="v tnum pos">+$96.40</div></div>
-        <div class="stat"><div class="lbl">Open Risk</div><div class="v tnum">2.4<small>%</small></div></div>
-        <div class="stat"><div class="lbl">Max DD</div><div class="v tnum neg">-4.1<small>%</small></div></div>
+        <div class="stat"><div class="lbl">Buy &amp; hold</div><div class="v tnum" id="sc-hold">—</div></div>
+        <div class="stat"><div class="lbl">Gross</div><div class="v tnum" id="sc-gross">—</div></div>
+        <div class="stat"><div class="lbl">Cost drag</div><div class="v tnum neg" id="sc-cost">—</div></div>
+        <div class="stat"><div class="lbl">Max DD</div><div class="v tnum neg" id="sc-dd">—</div></div>
       </div>
       <div class="equity-wrap">
-        <div class="lbl" style="margin-bottom:6px">Equity curve · paper</div>
+        <div class="lbl" style="margin-bottom:6px">Equity curve · <span id="sc-eqsym">best symbol</span></div>
         <div class="cv-holder"><canvas id="equity" width="720" height="120"></canvas></div>
       </div>
     </div>
 
     <div class="panel">
-      <h2>Top Paper Trades <span class="sub">best R</span></h2>
-      <div class="win">
-        <div class="sym">BTCUSD</div>
-        <div><div class="path">long perp · 62,400 → 64,900</div><div class="venue">DELTA INDIA · PERP</div></div>
-        <div class="mult pos tnum">+3.8R<small>+$182</small></div>
-      </div>
-      <div class="win">
-        <div class="sym">ETH 3200-C</div>
-        <div><div class="path">call · 41 → 118 prem</div><div class="venue">DELTA INDIA · OPTION</div></div>
-        <div class="mult pos tnum">+2.9R<small>+$154</small></div>
-      </div>
-      <div class="win">
-        <div class="sym">SOLUSD</div>
-        <div><div class="path">long perp · 150.2 → 158.6</div><div class="venue">DELTA INDIA · PERP</div></div>
-        <div class="mult pos tnum">+2.2R<small>+$110</small></div>
-      </div>
-      <div class="win">
-        <div class="sym">BTC 60k-P</div>
-        <div><div class="path">short premium · sold 240</div><div class="venue">DELTA INDIA · OPTION</div></div>
-        <div class="mult pos tnum">+1.7R<small>+$88</small></div>
-      </div>
-      <p class="note">Best paper fills this session. Live build ranks real closed trades by realised R.</p>
+      <h2>Top Paper Trades <span class="sub">best pnl</span></h2>
+      <div id="top-trades"></div>
+      <p class="note">Real closed trades from the winning strategy's backtest, ranked by pnl.</p>
     </div>
   </div>
 
-  <!-- Row 2: probability lattice -->
+  <!-- leaderboard -->
   <div class="grid">
     <div class="panel">
-      <h2>Probability Lattice <span class="sub">edge · outcome distribution</span></h2>
-      <div class="canvas-panel">
-        <div class="cv-holder"><canvas id="lattice" width="820" height="300"></canvas></div>
-        <div class="readout">
-          <div class="kv"><span class="lbl">Trials</span><b class="tnum">218</b></div>
-          <div class="kv"><span class="lbl">Landed green</span><b class="tnum pos">58.3%</b></div>
-          <div class="kv"><span class="lbl">EV / trade</span><b class="tnum pos">+$5.9</b></div>
-          <div class="kv"><span class="lbl">Edge vs 50/50</span><b class="tnum pos">+8.3%</b></div>
-          <p class="note">Law of large numbers — a small positive edge, repeated. Each ball is one paper trade; the drift right of centre is the edge.</p>
-        </div>
+      <h2>Strategy Leaderboard <span class="sub">edge vs buy-hold, after costs</span></h2>
+      <div style="overflow-x:auto">
+        <table class="board" id="board">
+          <thead><tr><th>strategy</th><th>edge</th><th>net</th><th>hold</th><th>sharpe</th><th>trades</th><th>win</th></tr></thead>
+          <tbody id="board-body"></tbody>
+        </table>
       </div>
+      <p class="note">The question that matters: which strategy beats simply holding the coin, net of Delta fees + GST.</p>
     </div>
   </div>
 
-  <!-- Row 3: tail probability ridge -->
+  <!-- probability lattice (trade outcome distribution) -->
   <div class="grid">
     <div class="panel">
-      <h2>Tail Probability Ridge <span class="sub">options · strike landscape</span></h2>
+      <h2>Probability Lattice <span class="sub">trade-outcome distribution</span></h2>
       <div class="canvas-panel">
-        <div class="cv-holder"><canvas id="ridge" width="820" height="320"></canvas></div>
+        <div class="cv-holder"><canvas id="lattice" width="820" height="280"></canvas></div>
         <div class="readout">
-          <div class="kv"><span class="lbl">Underlying</span><b class="tnum">BTCUSD</b></div>
-          <div class="kv"><span class="lbl">Implied move</span><b class="tnum warn">±3.9%</b></div>
-          <div class="kv"><span class="lbl">P(&gt; 66k)</span><b class="tnum">18.4%</b></div>
-          <div class="kv"><span class="lbl">Tail zone payout</span><b class="tnum pos">+14×</b></div>
+          <div class="kv"><span class="lbl">Trades</span><b class="tnum" id="lt-n">—</b></div>
+          <div class="kv"><span class="lbl">Landed green</span><b class="tnum pos" id="lt-green">—</b></div>
+          <div class="kv"><span class="lbl">EV / trade</span><b class="tnum" id="lt-ev">—</b></div>
+          <div class="kv"><span class="lbl">Best / worst</span><b class="tnum" id="lt-bw">—</b></div>
           <div class="legend">
-            <div><span class="swatch" style="background:var(--muted)"></span> price-target density</div>
-            <div><span class="swatch" style="background:var(--neg)"></span> tail / strike frontier</div>
+            <div><span class="swatch" style="background:var(--pos)"></span> winning trades</div>
+            <div><span class="swatch" style="background:var(--neg)"></span> losing trades</div>
           </div>
-          <p class="note">Each ridge = one expiry. Where the strike frontier crosses the density, premium is cheap vs. modelled odds.</p>
+          <p class="note">Each bar = count of trades in that pnl band. Mass right of zero and drifting right is the edge — law of large numbers, a small edge repeated.</p>
         </div>
       </div>
     </div>
   </div>
 
-  <!-- Row 4: relationship graph -->
+  <!-- equity ridges per symbol -->
   <div class="grid">
     <div class="panel">
-      <h2>Relationship Graph <span class="sub">ensemble → coordinator</span></h2>
+      <h2>Equity Ridges <span class="sub">winner · per symbol</span></h2>
       <div class="canvas-panel">
-        <div class="cv-holder"><canvas id="graph" width="820" height="360"></canvas></div>
-        <div class="readout">
-          <div class="kv"><span class="lbl">P(up)</span><b class="tnum pos">0.71</b></div>
-          <div class="kv"><span class="lbl">P(down)</span><b class="tnum neg">0.29</b></div>
-          <div class="kv"><span class="lbl">Confidence</span><b class="tnum">64%</b></div>
-          <div class="kv"><span class="lbl">Signal</span><b class="pos">▲ LONG</b></div>
-          <div class="legend">
-            <div><span class="swatch" style="background:var(--pos)"></span> bull signal</div>
-            <div><span class="swatch" style="background:var(--neg)"></span> bear signal</div>
-            <div><span class="swatch" style="background:var(--warn)"></span> catalyst</div>
-            <div><span class="swatch" style="background:var(--accent)"></span> cluster hub</div>
-          </div>
-          <p class="note">~100 deterministic scorers + a few LLM personas resolve to one conviction. LLM is advisory, never the single point of failure.</p>
-        </div>
+        <div class="cv-holder"><canvas id="ridge" width="820" height="300"></canvas></div>
+        <div class="readout" id="ridge-readout"></div>
       </div>
     </div>
   </div>
 
   <footer>
-    <span>AGENT ONLINE</span><span class="sep">·</span>
     <span>TRISHULA CORE</span><span class="sep">·</span>
     <span>PAPER MODE HARD</span><span class="sep">·</span>
-    <span>DELTA INDIA · FIU-IND</span>
+    <span>DELTA INDIA · FIU-IND</span><span class="sep">·</span>
+    <span id="ft-note">backtest viewer</span>
     <button class="theme-btn" id="themeBtn" type="button">◐ Theme</button>
   </footer>
 </div>
 
+<script>/*TRISHULA_DATA_START*/window.TRISHULA_DATA = null;/*TRISHULA_DATA_END*/</script>
 <script>
-(function () {
+(function(){
   "use strict";
-  var reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  function tok(name) { return getComputedStyle(document.documentElement).getPropertyValue(name).trim(); }
+  var reduce = window.matchMedia("(prefers-reduced-motion:reduce)").matches;
 
-  // Hi-DPI canvas setup returning a logical-size ctx
-  function setup(cv) {
-    var dpr = Math.min(window.devicePixelRatio || 1, 2);
-    var rect = cv.getBoundingClientRect();
-    var w = rect.width || cv.width, h = cv.height * (rect.width ? rect.width / cv.width : 1);
-    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
-    cv.style.height = h + "px";
-    var ctx = cv.getContext("2d");
-    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { ctx: ctx, w: w, h: h };
+  // ---- illustrative fallback (shown only when no real data injected) ----
+  var FALLBACK = {
+    meta:{symbols:["BTCUSD","ETHUSD","SOLUSD"],resolution:"1h",days:180,real_data:false,generated:"—",cost:0.059,short:true,illustrative:true},
+    winner:{strategy:"donchian_breakout_48",symbol:"BTCUSD",verdict:"PROMISING",
+      explanation:"Illustrative preview — run scripts/run_backtest.py --dashboard to replace with real Delta results.",
+      net_return_pct:18.4,gross_return_pct:22.1,cost_drag_pct:3.7,edge_vs_hold_pct:11.9,buy_hold_pct:6.5,
+      sharpe:1.1,max_drawdown_pct:-9.2,trades:64,win_rate_pct:41,profit_factor:1.6,
+      equity_curve:sample(240,1,0.0006,0.01)},
+    leaderboard:[
+      {strategy:"donchian_breakout_48",edge:11.9,net:18.4,hold:6.5,sharpe:1.11,trades:64,wr:41},
+      {strategy:"donchian_breakout_96",edge:9.3,net:15.8,hold:6.5,sharpe:1.05,trades:38,wr:44},
+      {strategy:"ema_cross_12_48",edge:3.1,net:9.6,hold:6.5,sharpe:0.4,trades:180,wr:33},
+      {strategy:"ema_cross_9_21",edge:-1.2,net:5.3,hold:6.5,sharpe:0.1,trades:300,wr:29},
+      {strategy:"bollinger_reversion_20_2.0",edge:-7.4,net:-0.9,hold:6.5,sharpe:-0.3,trades:150,wr:58},
+      {strategy:"rsi_reversion_14",edge:-14.0,net:-7.5,hold:6.5,sharpe:-0.8,trades:48,wr:52}
+    ],
+    top_trades:[
+      {symbol:"BTCUSD",side:"LONG",entry:60120,exit:64880,pnl_pct:7.6,bars:52},
+      {symbol:"ETHUSD",side:"LONG",entry:3110,exit:3320,pnl_pct:6.4,bars:40},
+      {symbol:"SOLUSD",side:"SHORT",entry:172,exit:158,pnl_pct:7.8,bars:33},
+      {symbol:"BTCUSD",side:"LONG",entry:58200,exit:60900,pnl_pct:4.4,bars:29},
+      {symbol:"ETHUSD",side:"SHORT",entry:3400,exit:3250,pnl_pct:4.1,bars:24},
+      {symbol:"SOLUSD",side:"LONG",entry:140,exit:150,pnl_pct:3.6,bars:19}
+    ],
+    trade_pnls:sampleTrades(64,7),
+    per_symbol:[
+      {symbol:"BTCUSD",net:24.1,hold:6.5,edge:17.6,equity_curve:sample(160,3,0.0009,0.011)},
+      {symbol:"ETHUSD",net:16.0,hold:8.2,edge:7.8,equity_curve:sample(160,5,0.0006,0.013)},
+      {symbol:"SOLUSD",net:15.1,hold:4.8,edge:10.3,equity_curve:sample(160,9,0.0007,0.016)}
+    ]
+  };
+  function lcg(seed){var s=seed>>>0;return function(){s=(1103515245*s+12345)&0x7fffffff;return s/0x7fffffff;};}
+  function sample(n,seed,drift,vol){var r=lcg(seed),v=1,out=[1];for(var i=1;i<n;i++){v*=(1+drift+(r()-0.5)*vol);out.push(v);}return out;}
+  function sampleTrades(n,seed){var r=lcg(seed),o=[];for(var i=0;i<n;i++){o.push(((r()-0.42)*8));}return o;}
+
+  var populated = !!window.TRISHULA_DATA;
+  var D = window.TRISHULA_DATA || FALLBACK;
+
+  function tok(name){return getComputedStyle(document.documentElement).getPropertyValue(name).trim();}
+  function $(id){return document.getElementById(id);}
+  function set(id,txt){var e=$(id);if(e)e.textContent=txt;}
+  function sgn(x){return (x>=0?"+":"")+x.toFixed(1)+"%";}
+  function sgn2(x){return (x>=0?"+":"")+x.toFixed(2)+"%";}
+  function colorFor(id,x){var e=$(id);if(e)e.className=e.className.replace(/\b(pos|neg)\b/g,"").trim()+" "+(x>=0?"pos":"neg");}
+
+  // ---- status + banner + verdict ----
+  function header(){
+    var m=D.meta, src, cls, banner, bcls;
+    if(!populated){src="ILLUSTRATIVE";cls="src-illus";banner="ILLUSTRATIVE placeholders — not real results. Run  python3 scripts/run_backtest.py --dashboard  on the droplet to populate with live Delta data.";bcls="warn";}
+    else if(m.real_data){src="REAL DELTA";cls="src-real";banner="REAL Delta Exchange India data · paper · not advice. Generated "+m.generated+".";bcls="real";}
+    else{src="SYNTHETIC";cls="src-syn";banner="SYNTHETIC offline data — engine check only, NOT a real edge. Re-run on the droplet for real Delta candles.";bcls="warn";}
+    var p=$("p-src");p.textContent=src;p.className="pill "+cls;
+    set("p-syms",(m.symbols||[]).join(" "));
+    set("p-res",m.resolution+" · "+m.days+"d");
+    set("p-gen",m.generated||"—");
+    var b=$("banner");b.textContent=banner;b.className="banner "+bcls;
+    set("ft-note",populated?(m.real_data?"live delta backtest":"synthetic backtest"):"illustrative preview");
+
+    var w=D.winner, tag=$("v-tag"), t=(w.verdict||"").toUpperCase();
+    tag.textContent=w.verdict||"—";
+    tag.className="tag "+(t.indexOf("PROMISING")>=0?"good":(t.indexOf("LOSING")>=0?"bad":"hold"));
+    set("v-strat",w.strategy);
+    set("v-expl",w.explanation||"");
   }
 
-  // seeded PRNG for stable layout
-  function mulberry(a) { return function () {
-    a |= 0; a = a + 0x6D2B79F5 | 0;
-    var t = Math.imul(a ^ a >>> 15, 1 | a);
-    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
-    return ((t ^ t >>> 14) >>> 0) / 4294967296;
-  }; }
-
-  // ---------- equity curve ----------
-  function drawEquity() {
-    var cv = document.getElementById("equity"); var s = setup(cv), ctx = s.ctx;
-    var rnd = mulberry(7), n = 90, pad = 6, base = s.h - pad;
-    var vals = [], v = 0.35;
-    for (var i = 0; i < n; i++) { v += (rnd() - 0.44) * 0.05; v = Math.max(0.08, Math.min(0.92, v)); vals.push(v); }
-    // trend it upward gently
-    for (i = 0; i < n; i++) vals[i] = vals[i] * 0.5 + (i / n) * 0.45 + 0.1;
-    var pos = tok("--pos"), grid = tok("--grid");
-    ctx.strokeStyle = grid; ctx.lineWidth = 1;
-    for (i = 1; i <= 3; i++) { var y = (s.h / 4) * i; ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(s.w, y); ctx.stroke(); }
-    function X(i) { return pad + (i / (n - 1)) * (s.w - pad * 2); }
-    function Y(val) { return base - val * (s.h - pad * 2); }
-    var grd = ctx.createLinearGradient(0, 0, 0, s.h);
-    grd.addColorStop(0, "color-mix(in srgb," + pos + " 34%, transparent)");
-    try { grd.addColorStop(0, pos); } catch (e) {}
-    ctx.beginPath(); ctx.moveTo(X(0), base);
-    for (i = 0; i < n; i++) ctx.lineTo(X(i), Y(vals[i]));
-    ctx.lineTo(X(n - 1), base); ctx.closePath();
-    ctx.globalAlpha = 0.14; ctx.fillStyle = pos; ctx.fill(); ctx.globalAlpha = 1;
-    ctx.beginPath(); for (i = 0; i < n; i++) { var fx = X(i), fy = Y(vals[i]); i ? ctx.lineTo(fx, fy) : ctx.moveTo(fx, fy); }
-    ctx.strokeStyle = pos; ctx.lineWidth = 1.6; ctx.stroke();
-    ctx.beginPath(); ctx.arc(X(n - 1), Y(vals[n - 1]), 3, 0, 7); ctx.fillStyle = pos; ctx.fill();
+  // ---- scorecard ----
+  function scorecard(){
+    var w=D.winner;
+    set("sc-symbol",w.symbol||"");
+    set("sc-eqsym",w.symbol||"best symbol");
+    var net=$("sc-net");net.textContent=sgn2(w.net_return_pct);net.className="hero-pnl tnum "+(w.net_return_pct>=0?"pos":"neg");
+    set("sc-edge",sgn(w.edge_vs_hold_pct));colorFor("sc-edge",w.edge_vs_hold_pct);
+    set("sc-trades",w.trades+" trades");
+    set("sc-wr",(w.win_rate_pct==null?"n/a":Math.round(w.win_rate_pct)+"%")+" WR");
+    set("sc-pf",w.profit_factor==null?"n/a":w.profit_factor.toFixed(2));
+    set("sc-hold",sgn(w.buy_hold_pct));
+    set("sc-gross",sgn(w.gross_return_pct));
+    set("sc-cost","-"+Math.abs(w.cost_drag_pct).toFixed(2)+"%");
+    set("sc-dd",w.max_drawdown_pct.toFixed(1)+"%");
   }
 
-  // ---------- probability lattice (Galton board) ----------
-  function drawLattice() {
-    var cv = document.getElementById("lattice"); var s = setup(cv), ctx = s.ctx;
-    var rows = 10, topY = 18, pegGap = (s.h - 130) / rows, cx = s.w / 2;
-    var faint = tok("--faint"), pos = tok("--pos"), neg = tok("--neg"), muted = tok("--muted");
-    // divider
-    ctx.strokeStyle = tok("--grid"); ctx.setLineDash([4, 4]);
-    ctx.beginPath(); ctx.moveTo(cx, 6); ctx.lineTo(cx, s.h - 90); ctx.stroke(); ctx.setLineDash([]);
-    // pegs
-    ctx.fillStyle = faint;
-    for (var r = 0; r < rows; r++) for (var c = 0; c <= r; c++) {
-      var px = cx + (c - r / 2) * 26, py = topY + r * pegGap;
-      ctx.beginPath(); ctx.arc(px, py, 1.5, 0, 7); ctx.fill();
-    }
-    // balls: binomial with slight rightward (edge) bias
-    var rnd = mulberry(21), N = 150, p = 0.545, bins = {};
-    for (var i = 0; i < N; i++) {
-      var pos_i = 0;
-      for (r = 0; r < rows; r++) pos_i += (rnd() < p ? 1 : 0);
-      var bx = cx + (pos_i - rows / 2) * 26;
-      var by = topY + rnd() * (rows - 1) * pegGap * 0.6 + pegGap;
-      var b = Math.round(pos_i);
-      bins[b] = (bins[b] || 0) + 1;
-      ctx.fillStyle = pos_i >= rows / 2 ? pos : neg;
-      ctx.globalAlpha = 0.5;
-      ctx.beginPath(); ctx.arc(bx, by, 2.1, 0, 7); ctx.fill();
-    }
-    ctx.globalAlpha = 1;
-    // histogram at bottom
-    var baseY = s.h - 8, maxc = 0, k;
-    for (k in bins) maxc = Math.max(maxc, bins[k]);
-    for (k = 0; k <= rows; k++) {
-      var cnt = bins[k] || 0, bh = (cnt / maxc) * 66;
-      var hx = cx + (k - rows / 2) * 26 - 10;
-      ctx.fillStyle = k >= rows / 2 ? pos : neg; ctx.globalAlpha = 0.85;
-      ctx.fillRect(hx, baseY - bh, 20, bh);
-    }
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = muted; ctx.font = "10px " + tok("--mono");
-    ctx.fillText("LOSS", 6, 14); ctx.textAlign = "right"; ctx.fillText("PROFIT", s.w - 6, 14); ctx.textAlign = "left";
-  }
-
-  // ---------- tail probability ridge (joyplot) ----------
-  function drawRidge() {
-    var cv = document.getElementById("ridge"); var s = setup(cv), ctx = s.ctx;
-    var ridges = 9, rnd = mulberry(55), surface = tok("--surface");
-    var muted = tok("--muted"), neg = tok("--neg"), border = tok("--border");
-    var padL = 10, padR = 10, w = s.w - padL - padR, stepY = (s.h - 40) / ridges;
-    for (var g = 0; g < ridges; g++) {
-      var baseY = 24 + g * stepY + stepY * 1.6;
-      var mu = 0.42 + g * 0.012 + (rnd() - 0.5) * 0.02;   // peak drifts right per expiry
-      var sig = 0.11 + g * 0.006, amp = stepY * 2.1;
-      ctx.beginPath();
-      for (var xi = 0; xi <= w; xi += 3) {
-        var x = xi / w;
-        var y = Math.exp(-0.5 * Math.pow((x - mu) / sig, 2));
-        var py = baseY - y * amp;
-        xi ? ctx.lineTo(padL + xi, py) : ctx.moveTo(padL + xi, py);
-      }
-      ctx.lineTo(padL + w, baseY); ctx.lineTo(padL, baseY); ctx.closePath();
-      ctx.fillStyle = surface; ctx.globalAlpha = 0.96; ctx.fill(); ctx.globalAlpha = 1;
-      ctx.strokeStyle = border; ctx.lineWidth = 1; ctx.stroke();
-      // ridge crest
-      ctx.beginPath();
-      for (xi = 0; xi <= w; xi += 3) {
-        x = xi / w; y = Math.exp(-0.5 * Math.pow((x - mu) / sig, 2));
-        py = baseY - y * amp; xi ? ctx.lineTo(padL + xi, py) : ctx.moveTo(padL + xi, py);
-      }
-      ctx.strokeStyle = muted; ctx.globalAlpha = 0.5; ctx.lineWidth = 1; ctx.stroke(); ctx.globalAlpha = 1;
-    }
-    // strike frontier (dashed) + tail zone
-    var fx = padL + w * 0.78;
-    ctx.setLineDash([5, 4]); ctx.strokeStyle = neg; ctx.lineWidth = 1.3;
-    ctx.beginPath(); ctx.moveTo(fx, 14); ctx.lineTo(fx, s.h - 14); ctx.stroke(); ctx.setLineDash([]);
-    ctx.fillStyle = neg; ctx.globalAlpha = 0.06; ctx.fillRect(fx, 14, padL + w - fx, s.h - 28); ctx.globalAlpha = 1;
-    ctx.fillStyle = neg; ctx.font = "9px " + tok("--mono"); ctx.textAlign = "right";
-    ctx.fillText("TAIL ZONE · +14×", padL + w - 4, 24); ctx.textAlign = "left";
-    ctx.fillStyle = muted; ctx.fillText("PRICE-TARGET DENSITY", padL + 2, 14);
-  }
-
-  // ---------- relationship graph ----------
-  var graphRAF = null;
-  function drawGraph() {
-    var cv = document.getElementById("graph"); var s = setup(cv), ctx = s.ctx;
-    var pos = tok("--pos"), neg = tok("--neg"), warn = tok("--warn"), accent = tok("--accent");
-    var faint = tok("--faint"), border = tok("--border");
-    var rnd = mulberry(88);
-    var kinds = [
-      { c: pos, n: 7, r: 4 }, { c: neg, n: 6, r: 4 }, { c: warn, n: 3, r: 5 }
-    ];
-    var nodes = [];
-    // three clusters/hubs
-    var hubs = [
-      { x: s.w * 0.26, y: s.h * 0.36, c: accent, r: 13, label: "BEAR CLUSTER" },
-      { x: s.w * 0.52, y: s.h * 0.66, c: accent, r: 15, label: "HUB · PRIZE" },
-      { x: s.w * 0.75, y: s.h * 0.40, c: pos, r: 11, label: "CATALYST RING" }
-    ];
-    kinds.forEach(function (k) {
-      for (var i = 0; i < k.n; i++) nodes.push({
-        x: s.w * (0.12 + rnd() * 0.76), y: s.h * (0.14 + rnd() * 0.72),
-        r: k.r + rnd() * 2, c: k.c, ph: rnd() * 6.28
-      });
+  // ---- top trades ----
+  function topTrades(){
+    var host=$("top-trades");host.innerHTML="";
+    (D.top_trades||[]).forEach(function(t){
+      var row=document.createElement("div");row.className="win";
+      var pnlCls=t.pnl_pct>=0?"pos":"neg";
+      row.innerHTML='<div class="sym">'+t.symbol+'</div>'+
+        '<div><div class="path">'+t.side.toLowerCase()+' · '+fmt(t.entry)+' → '+fmt(t.exit)+'</div>'+
+        '<div class="venue">DELTA INDIA · '+t.bars+' bars</div></div>'+
+        '<div class="mult '+pnlCls+' tnum">'+sgn(t.pnl_pct)+'<small>'+t.side+'</small></div>';
+      host.appendChild(row);
     });
-    function render(t) {
-      ctx.clearRect(0, 0, s.w, s.h);
-      // edges: nearest-hub links
-      ctx.strokeStyle = border; ctx.lineWidth = 1;
-      nodes.forEach(function (nd) {
-        var h = hubs[0], best = 1e9;
-        hubs.forEach(function (hh) { var d = (hh.x - nd.x) * (hh.x - nd.x) + (hh.y - nd.y) * (hh.y - nd.y); if (d < best) { best = d; h = hh; } });
-        ctx.globalAlpha = 0.4; ctx.beginPath(); ctx.moveTo(nd.x, nd.y); ctx.lineTo(h.x, h.y); ctx.stroke();
-      });
-      ctx.globalAlpha = 1;
-      // dashed median path across hubs
-      ctx.setLineDash([6, 5]); ctx.strokeStyle = faint; ctx.lineWidth = 1.4;
-      ctx.beginPath(); ctx.moveTo(hubs[0].x, hubs[0].y);
-      ctx.quadraticCurveTo(s.w * 0.4, s.h * 0.9, hubs[1].x, hubs[1].y);
-      ctx.quadraticCurveTo(s.w * 0.66, s.h * 0.3, hubs[2].x, hubs[2].y); ctx.stroke(); ctx.setLineDash([]);
-      // nodes
-      nodes.forEach(function (nd) {
-        var pulse = reduce ? 1 : 1 + Math.sin(t / 700 + nd.ph) * 0.12;
-        ctx.beginPath(); ctx.arc(nd.x, nd.y, nd.r * pulse, 0, 7);
-        ctx.fillStyle = nd.c; ctx.globalAlpha = 0.85; ctx.fill(); ctx.globalAlpha = 1;
-      });
-      // hubs
-      hubs.forEach(function (h) {
-        var pulse = reduce ? 1 : 1 + Math.sin(t / 900 + h.x) * 0.06;
-        ctx.beginPath(); ctx.arc(h.x, h.y, h.r * pulse, 0, 7);
-        ctx.fillStyle = h.c; ctx.globalAlpha = 0.9; ctx.fill(); ctx.globalAlpha = 1;
-        ctx.strokeStyle = "color-mix(in srgb," + h.c + " 60%, transparent)"; ctx.lineWidth = 6;
-        ctx.globalAlpha = 0.18; ctx.stroke(); ctx.globalAlpha = 1;
-        ctx.fillStyle = tok("--muted"); ctx.font = "9px " + tok("--mono"); ctx.textAlign = "center";
-        ctx.fillText(h.label, h.x, h.y + h.r + 12); ctx.textAlign = "left";
-      });
-      // readout stamp
-      ctx.fillStyle = tok("--faint"); ctx.font = "9px " + tok("--mono");
-      ctx.fillText("NODES " + nodes.length + " · EDGES " + nodes.length + " · CONV 64%", 8, s.h - 8);
+    if(!(D.top_trades||[]).length){host.innerHTML='<p class="note">No closed trades.</p>';}
+  }
+  function fmt(x){return x>=1000?x.toLocaleString(undefined,{maximumFractionDigits:0}):(x>=1?x.toFixed(2):x.toFixed(4));}
+
+  // ---- leaderboard ----
+  function leaderboard(){
+    var body=$("board-body");body.innerHTML="";
+    var winName=D.winner.strategy;
+    (D.leaderboard||[]).forEach(function(r){
+      var tr=document.createElement("tr");
+      if(r.strategy===winName)tr.className="winner";
+      function td(txt,cls){return '<td'+(cls?' class="'+cls+'"':'')+'>'+txt+'</td>';}
+      tr.innerHTML=td(r.strategy)+td('<span class="tnum '+(r.edge>=0?"pos":"neg")+'">'+sgn(r.edge)+'</span>')+
+        td('<span class="tnum">'+sgn(r.net)+'</span>')+td('<span class="tnum">'+sgn(r.hold)+'</span>')+
+        td('<span class="tnum">'+r.sharpe.toFixed(2)+'</span>')+td('<span class="tnum">'+r.trades+'</span>')+
+        td('<span class="tnum">'+(r.wr==null?"n/a":Math.round(r.wr)+"%")+'</span>');
+      body.appendChild(tr);
+    });
+  }
+
+  // ---- canvas helpers ----
+  function setup(cv){
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    var rect=cv.getBoundingClientRect();
+    var w=rect.width||cv.width, h=cv.height*(rect.width?rect.width/cv.width:1);
+    cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr);cv.style.height=h+"px";
+    var ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);
+    return {ctx:ctx,w:w,h:h};
+  }
+
+  function drawEquity(){
+    var s=setup($("equity")),ctx=s.ctx,curve=D.winner.equity_curve||[1,1];
+    var pad=6,lo=Math.min.apply(null,curve),hi=Math.max.apply(null,curve),rng=(hi-lo)||1;
+    var up=curve[curve.length-1]>=curve[0],col=up?tok("--pos"):tok("--neg");
+    ctx.strokeStyle=tok("--grid");ctx.lineWidth=1;
+    for(var g=1;g<=3;g++){var y=(s.h/4)*g;ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(s.w,y);ctx.stroke();}
+    function X(i){return pad+(i/(curve.length-1))*(s.w-pad*2);}
+    function Y(v){return (s.h-pad)-((v-lo)/rng)*(s.h-pad*2);}
+    ctx.beginPath();ctx.moveTo(X(0),s.h-pad);
+    for(var i=0;i<curve.length;i++)ctx.lineTo(X(i),Y(curve[i]));
+    ctx.lineTo(X(curve.length-1),s.h-pad);ctx.closePath();
+    ctx.globalAlpha=0.13;ctx.fillStyle=col;ctx.fill();ctx.globalAlpha=1;
+    ctx.beginPath();for(i=0;i<curve.length;i++){i?ctx.lineTo(X(i),Y(curve[i])):ctx.moveTo(X(i),Y(curve[i]));}
+    ctx.strokeStyle=col;ctx.lineWidth=1.6;ctx.stroke();
+    ctx.beginPath();ctx.arc(X(curve.length-1),Y(curve[curve.length-1]),3,0,7);ctx.fillStyle=col;ctx.fill();
+  }
+
+  function drawLattice(){
+    var s=setup($("lattice")),ctx=s.ctx,pnls=D.trade_pnls||[];
+    var pos=tok("--pos"),neg=tok("--neg"),muted=tok("--muted"),grid=tok("--grid");
+    if(!pnls.length){ctx.fillStyle=muted;ctx.font="11px "+tok("--mono");ctx.fillText("no trades",10,20);return;}
+    var lo=Math.min.apply(null,pnls),hi=Math.max.apply(null,pnls),span=Math.max(Math.abs(lo),Math.abs(hi))||1;
+    lo=-span;hi=span;
+    var BINS=21,counts=new Array(BINS).fill(0);
+    pnls.forEach(function(p){var idx=Math.floor((p-lo)/(hi-lo)*BINS);idx=Math.max(0,Math.min(BINS-1,idx));counts[idx]++;});
+    var maxc=Math.max.apply(null,counts)||1;
+    var padB=26,padT=10,base=s.h-padB,bw=s.w/BINS;
+    // zero line
+    var zx=((0-lo)/(hi-lo))*s.w;
+    ctx.strokeStyle=grid;ctx.setLineDash([4,4]);ctx.beginPath();ctx.moveTo(zx,padT);ctx.lineTo(zx,base);ctx.stroke();ctx.setLineDash([]);
+    for(var i=0;i<BINS;i++){
+      var bh=(counts[i]/maxc)*(base-padT);
+      var cx=lo+(i+0.5)/BINS*(hi-lo);
+      ctx.fillStyle=cx>=0?pos:neg;ctx.globalAlpha=0.85;
+      ctx.fillRect(i*bw+1,base-bh,bw-2,bh);
     }
-    if (graphRAF) cancelAnimationFrame(graphRAF);
-    if (reduce) { render(0); return; }
-    var start = null;
-    (function loop(ts) { if (start === null) start = ts; render(ts - start); graphRAF = requestAnimationFrame(loop); })(0);
+    ctx.globalAlpha=1;ctx.fillStyle=muted;ctx.font="10px "+tok("--mono");
+    ctx.fillText("LOSS",6,base+16);ctx.textAlign="right";ctx.fillText("PROFIT",s.w-6,base+16);ctx.textAlign="left";
+    ctx.fillText(lo.toFixed(1)+"%",6,padT+8);ctx.textAlign="right";ctx.fillText("+"+hi.toFixed(1)+"%",s.w-6,padT+8);ctx.textAlign="left";
+    // readout
+    var green=pnls.filter(function(p){return p>0;}).length;
+    var ev=pnls.reduce(function(a,b){return a+b;},0)/pnls.length;
+    set("lt-n",pnls.length);
+    set("lt-green",(green/pnls.length*100).toFixed(0)+"%");
+    var evE=$("lt-ev");evE.textContent=sgn2(ev);evE.className="tnum "+(ev>=0?"pos":"neg");
+    set("lt-bw","+"+hi.toFixed(1)+" / "+lo.toFixed(1)+"%");
   }
 
-  function drawAll() { drawEquity(); drawLattice(); drawRidge(); drawGraph(); }
-
-  // clock
-  function tick() {
-    var d = new Date();
-    function p(n) { return (n < 10 ? "0" : "") + n; }
-    var el = document.getElementById("clock");
-    if (el) el.textContent = p(d.getUTCHours()) + ":" + p(d.getUTCMinutes()) + ":" + p(d.getUTCSeconds()) + " UTC";
+  function drawRidge(){
+    var s=setup($("ridge")),ctx=s.ctx,syms=D.per_symbol||[];
+    var surface=tok("--surface"),border=tok("--border"),muted=tok("--muted"),pos=tok("--pos"),neg=tok("--neg");
+    if(!syms.length){ctx.fillStyle=muted;ctx.font="11px "+tok("--mono");ctx.fillText("no data",10,20);return;}
+    var padL=10,padR=10,w=s.w-padL-padR,stepY=(s.h-30)/syms.length;
+    for(var g=syms.length-1;g>=0;g--){  // draw back-to-front
+      var sym=syms[g],curve=sym.equity_curve||[1,1];
+      var lo=Math.min.apply(null,curve),hi=Math.max.apply(null,curve),rng=(hi-lo)||1;
+      var baseY=24+g*stepY+stepY*1.5,amp=stepY*2.0;
+      ctx.beginPath();ctx.moveTo(padL,baseY);
+      for(var i=0;i<curve.length;i++){
+        var x=padL+(i/(curve.length-1))*w, y=baseY-((curve[i]-lo)/rng)*amp;
+        ctx.lineTo(x,y);
+      }
+      ctx.lineTo(padL+w,baseY);ctx.closePath();
+      ctx.fillStyle=surface;ctx.globalAlpha=0.94;ctx.fill();ctx.globalAlpha=1;
+      ctx.beginPath();
+      for(i=0;i<curve.length;i++){var x2=padL+(i/(curve.length-1))*w,y2=baseY-((curve[i]-lo)/rng)*amp;i?ctx.lineTo(x2,y2):ctx.moveTo(x2,y2);}
+      ctx.strokeStyle=sym.edge>=0?pos:neg;ctx.globalAlpha=0.75;ctx.lineWidth=1.3;ctx.stroke();ctx.globalAlpha=1;
+      ctx.fillStyle=muted;ctx.font="10px "+tok("--mono");ctx.fillText(sym.symbol,padL+2,baseY-2);
+    }
+    // readout
+    var host=$("ridge-readout");host.innerHTML="";
+    syms.forEach(function(sym){
+      var kv=document.createElement("div");kv.className="kv";
+      kv.innerHTML='<span class="lbl">'+sym.symbol+'</span><b class="tnum '+(sym.edge>=0?"pos":"neg")+'">'+sgn(sym.edge)+'</b>';
+      host.appendChild(kv);
+    });
+    var note=document.createElement("p");note.className="note";
+    note.textContent="Each ridge = winner's paper equity on that symbol. Value at right is edge vs holding it.";
+    host.appendChild(note);
   }
-  tick(); setInterval(tick, 1000);
 
-  // theme toggle
-  document.getElementById("themeBtn").addEventListener("click", function () {
-    var cur = document.documentElement.getAttribute("data-theme");
-    var isDark = cur ? cur === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    document.documentElement.setAttribute("data-theme", isDark ? "light" : "dark");
+  function drawAll(){drawEquity();drawLattice();drawRidge();}
+  function renderAll(){header();scorecard();topTrades();leaderboard();drawAll();}
+
+  $("themeBtn").addEventListener("click",function(){
+    var cur=document.documentElement.getAttribute("data-theme");
+    var isDark=cur?cur==="dark":window.matchMedia("(prefers-color-scheme:dark)").matches;
+    document.documentElement.setAttribute("data-theme",isDark?"light":"dark");
     requestAnimationFrame(drawAll);
   });
-
-  var to;
-  window.addEventListener("resize", function () { clearTimeout(to); to = setTimeout(drawAll, 150); });
-  window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", function () { requestAnimationFrame(drawAll); });
-  drawAll();
+  var to;window.addEventListener("resize",function(){clearTimeout(to);to=setTimeout(drawAll,150);});
+  window.matchMedia("(prefers-color-scheme:dark)").addEventListener("change",function(){requestAnimationFrame(drawAll);});
+  renderAll();
 })();
 </script>
 </body>

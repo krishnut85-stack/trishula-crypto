@@ -2,44 +2,48 @@
 """Rank the strategy pool by honest, cost-aware edge vs buy-and-hold.
 
 Answers the Garuda question for crypto: *which strategy is actually working?*
+With --dashboard it also writes the live cockpit (dashboard/cockpit.html) and
+dashboard/data.json from the REAL results.
 
-Real data (default):
-    python3 scripts/run_backtest.py --symbols BTCUSD,ETHUSD --resolution 1h --days 180
+Real data + dashboard (on the droplet):
+    python3 scripts/run_backtest.py --symbols BTCUSD,ETHUSD --resolution 1h --days 180 --dashboard
 
 Offline validation (no network — synthetic candles, clearly labelled):
-    python3 scripts/run_backtest.py --synthetic
+    python3 scripts/run_backtest.py --synthetic --dashboard
 
-On the droplet:
-    cd /home/globalbot && set -a && source .env && set +a && \
-        python3 scripts/run_backtest.py --symbols BTCUSD,ETHUSD --resolution 1h --days 180
-
-Rollback: read-only (fetches candles + prints). Cached candles live in
-data/candles/ and can be deleted freely.
+Rollback: read-only except the two dashboard files it writes when --dashboard is
+passed (dashboard/cockpit.html, dashboard/data.json) and cached candles in
+data/candles/. All can be regenerated or deleted freely.
 """
 from __future__ import annotations
 
 import argparse
+import json
+import os
 import sys
+import time
 
 try:
-    from trishula import history, strategies, backtest, scorecard
+    from trishula import history, strategies, backtest, scorecard, report
     from trishula.delta_client import DeltaError
 except ModuleNotFoundError:
-    import os
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-    from trishula import history, strategies, backtest, scorecard
+    from trishula import history, strategies, backtest, scorecard, report
     from trishula.delta_client import DeltaError
+
+HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DASH_HTML = os.path.join(HERE, "dashboard", "cockpit.html")
+DASH_JSON = os.path.join(HERE, "dashboard", "data.json")
 
 
 def get_candles(symbol, resolution, days, synthetic):
     if synthetic:
-        # different seed per symbol so they aren't identical series
         seed = abs(hash(symbol)) % 9999 + 1
         return history.synthetic_candles(n=min(days * 24, 3000), seed=seed,
                                          resolution=resolution), False
     try:
         return history.fetch_candles(symbol, resolution, days), True
-    except (DeltaError, Exception) as exc:  # noqa: BLE001 - fall back gracefully
+    except Exception as exc:  # noqa: BLE001 - fall back gracefully
         print(f"  ! {symbol}: live fetch failed ({exc}); using SYNTHETIC instead")
         seed = abs(hash(symbol)) % 9999 + 1
         return history.synthetic_candles(n=min(days * 24, 3000), seed=seed,
@@ -57,6 +61,8 @@ def main() -> int:
     ap.add_argument("--synthetic", action="store_true",
                     help="offline: use synthetic candles (NOT a real edge)")
     ap.add_argument("--detail", action="store_true", help="print per-symbol scorecards")
+    ap.add_argument("--dashboard", action="store_true",
+                    help="write dashboard/cockpit.html + data.json from these results")
     args = ap.parse_args()
 
     symbols = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
@@ -68,8 +74,9 @@ def main() -> int:
     print(f"symbols: {', '.join(symbols)}")
 
     all_real = True
-    # agg[strategy] = list of scorecards across symbols
-    agg = {s.__name__: [] for s in pool}
+    # per strategy: aligned lists of (scorecard, raw result), one entry per symbol
+    cards_by = {s.__name__: [] for s in pool}
+    results_by = {s.__name__: [] for s in pool}
 
     for symbol in symbols:
         candles, real = get_candles(symbol, args.resolution, args.days, args.synthetic)
@@ -85,17 +92,17 @@ def main() -> int:
                 candles, strat, resolution=args.resolution,
                 cost_per_side_pct=args.cost, allow_short=allow_short)
             sc = scorecard.build_scorecard(res, bench, symbol=symbol)
-            agg[strat.__name__].append(sc)
+            cards_by[strat.__name__].append(sc)
+            results_by[strat.__name__].append(res)
             if args.detail:
                 print("\n" + scorecard.format_scorecard(sc, real_data=real))
 
-    # ---- leaderboard: rank by mean edge vs hold across symbols ----
     def mean(xs):
         xs = [x for x in xs if x is not None]
         return sum(xs) / len(xs) if xs else 0.0
 
     board = []
-    for name, cards in agg.items():
+    for name, cards in cards_by.items():
         if not cards:
             continue
         board.append({
@@ -122,13 +129,37 @@ def main() -> int:
               f"{r['hold']:+7.1f}% {r['sharpe']:6.2f} {r['trades']:7d} {wr:>5}")
     print("=" * 74)
 
-    if board:
-        best = board[0]
-        status, expl = scorecard._verdict(best["net"], best["hold"], best["trades"])
-        print(f"  WINNER: {best['strategy']}  ->  {status}")
-        print(f"  {expl}")
-        if not all_real:
-            print("  NOTE: synthetic run — validate on REAL Delta candles before believing this.")
+    if not board:
+        print("  no results.\n")
+        return 1
+
+    best = board[0]
+    status, expl = scorecard._verdict(best["net"], best["hold"], best["trades"])
+    print(f"  WINNER: {best['strategy']}  ->  {status}")
+    print(f"  {expl}")
+    if not all_real:
+        print("  NOTE: synthetic run — validate on REAL Delta candles before believing this.")
+
+    # ---- dashboard ----
+    if args.dashboard:
+        meta = {
+            "symbols": symbols, "resolution": args.resolution, "days": args.days,
+            "real_data": all_real, "cost": args.cost, "short": allow_short,
+            "generated": time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(time.time())),
+        }
+        winner_name = best["strategy"]
+        data = report.build_data(
+            winner_name, cards_by[winner_name], results_by[winner_name], board, meta)
+        os.makedirs(os.path.dirname(DASH_JSON), exist_ok=True)
+        with open(DASH_JSON, "w") as fh:
+            json.dump(data, fh, separators=(",", ":"))
+        try:
+            report.write_dashboard(data, template_path=DASH_HTML, out_path=DASH_HTML)
+            print(f"\n  dashboard: wrote {os.path.relpath(DASH_HTML, HERE)} "
+                  f"and {os.path.relpath(DASH_JSON, HERE)}")
+            print("  open dashboard/cockpit.html in a browser (self-contained).")
+        except Exception as exc:  # noqa: BLE001
+            print(f"\n  ! dashboard render failed: {exc}")
     print()
     return 0
 

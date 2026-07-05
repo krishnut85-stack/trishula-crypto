@@ -30,10 +30,16 @@ What's in place:
   Donchian breakout, Bollinger reversion, buy-hold), `backtest.py` (cost-aware
   walk-forward engine), `scorecard.py` (honest verdict vs buy-and-hold), and
   `scripts/run_backtest.py` (strategy leaderboard — "which strategy is working").
+- **Live dashboard (wired to backtest):** `dashboard/cockpit.html` — a
+  self-contained terminal cockpit. `run_backtest.py --dashboard` injects the real
+  results (winner scorecard + equity curve, leaderboard, top trades, trade-outcome
+  distribution, per-symbol equity ridges). Every panel is labelled REAL / SYNTHETIC
+  / ILLUSTRATIVE so a placeholder is never mistaken for a real edge. `trishula/report.py`
+  builds the payload and renders the page.
 
 Next (per build order): WebSocket L2 feed → dual-track tax ledger → safety rails
 → one momentum engine end-to-end → ensemble/news/options/router → Telegram
-reporting. UI/dashboard to match the reference model.
+reporting.
 
 ## Quick start
 
@@ -44,6 +50,9 @@ cp .env.example .env          # fill DELTA_API_KEY / DELTA_API_SECRET, point
 
 # Rank strategies by cost-aware edge vs buy-and-hold (REAL Delta candles):
 python3 scripts/run_backtest.py --symbols BTCUSD,ETHUSD,SOLUSD --resolution 1h --days 180
+
+# ...and write the live dashboard from those results (open dashboard/cockpit.html):
+python3 scripts/run_backtest.py --symbols BTCUSD,ETHUSD,SOLUSD --resolution 1h --days 180 --dashboard
 
 # Offline validation anywhere (synthetic candles, clearly labelled):
 python3 scripts/run_backtest.py --synthetic
