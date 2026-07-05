@@ -49,17 +49,18 @@ def get_universe(client, top_n):
             vol[sym] = 0.0
     syms = [p["symbol"] for p in perps if p.get("symbol") in vol]
     syms = sorted(syms, key=lambda s: vol.get(s, 0), reverse=True)[:top_n]
-    return syms
+    return syms, {s: vol.get(s, 0) / 1e6 for s in syms}   # volume in $mn
 
 
 def synth_universe(top_n):
-    syms = MAJORS + [f"ALT{i}USD" for i in range(top_n)]
-    out = {}
-    for k, s in enumerate(syms[:top_n]):
+    syms = (MAJORS + [f"ALT{i}USD" for i in range(top_n)])[:top_n]
+    out, volmn = {}, {}
+    for k, s in enumerate(syms):
         out[s] = history.synthetic_candles(n=1100, seed=k + 1,
                                            drift=0.02 + (k % 5) * 0.15,
                                            vol=0.8, resolution="1d")
-    return out
+        volmn[s] = max(0.1, 5000.0 / (k + 1))   # majors liquid, tail thin
+    return out, volmn
 
 
 def stats_from_curve(curve, ppy=365.0):
@@ -105,12 +106,12 @@ def main() -> int:
 
     # -------- fetch universe daily candles --------
     if args.synthetic:
-        candles = synth_universe(args.top)
+        candles, volmn = synth_universe(args.top)
         real = False
     else:
         try:
             client = DeltaClient()
-            syms = get_universe(client, args.top)
+            syms, volmn = get_universe(client, args.top)
             print(f"universe: {len(syms)} live perps by 24h volume")
             candles, real = {}, True
             for i, s in enumerate(syms):
@@ -124,7 +125,7 @@ def main() -> int:
                     print(f"  fetched {i + 1}/{len(syms)}")
         except Exception as exc:  # noqa: BLE001
             print(f"  ! universe fetch failed ({exc}); using SYNTHETIC")
-            candles, real = synth_universe(args.top), False
+            candles, volmn, real = *synth_universe(args.top), False
 
     if len(candles) < 6:
         print("  not enough symbols with history; aborting.")
@@ -132,13 +133,19 @@ def main() -> int:
 
     tag = "REAL Delta data" if real else "SYNTHETIC (offline) — NOT a real edge"
 
+    # liquidity-scaled per-side cost (cheap majors, expensive thin low-caps)
+    cost_by_symbol = portfolio.liquidity_slippage({s: volmn.get(s, 0.1) for s in candles})
+    illiq = sorted(cost_by_symbol.items(), key=lambda kv: kv[1])
+    print(f"  cost/side: cheapest {illiq[0][0]} {illiq[0][1]:.3f}%  "
+          f"priciest {illiq[-1][0]} {illiq[-1][1]:.3f}%  ({len(candles)} coins with history)")
+
     # -------- Lane A: portfolio momentum --------
     mom_gate = portfolio.cross_sectional_momentum(
         candles, lookback=args.lookback, top_frac=args.top_frac, use_regime=True,
-        label="xs_momentum + regime")
+        cost_by_symbol=cost_by_symbol, label="xs_momentum + regime")
     mom_raw = portfolio.cross_sectional_momentum(
         candles, lookback=args.lookback, top_frac=args.top_frac, use_regime=False,
-        label="xs_momentum (no regime)")
+        cost_by_symbol=cost_by_symbol, label="xs_momentum (no regime)")
 
     # benchmarks
     btc = candles.get("BTCUSD") or next(iter(candles.values()))

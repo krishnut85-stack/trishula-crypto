@@ -62,12 +62,30 @@ def _stats(curve: List[float], rets: List[float], ppy: float) -> dict:
             "sharpe": sharpe, "max_dd_pct": mdd * 100}
 
 
+def liquidity_slippage(volmn: Dict[str, float], fee_pct: float = 0.059,
+                       slip_base_pct: float = 0.03, slip_k: float = 0.08,
+                       slip_cap_pct: float = 1.0) -> Dict[str, float]:
+    """Per-side cost % per symbol, scaled by 24h volume ($mn).
+
+    Cheap for liquid majors, expensive for thin low-caps — because momentum
+    tends to pick exactly the illiquid movers, and pretending they cost the same
+    as BTC is how a backtest lies. fee = taker + 18% GST; slippage grows as
+    1/sqrt(volume).
+    """
+    out = {}
+    for s, v in volmn.items():
+        slip = min(slip_cap_pct, slip_base_pct + slip_k / max(0.05, (max(v, 1e-6)) ** 0.5))
+        out[s] = fee_pct + slip
+    return out
+
+
 def cross_sectional_momentum(
     candles_by_symbol: Dict[str, List[Candle]],
     lookback: int = 56,           # bars (daily -> 8 weeks)
     rebal: int = 7,               # rebalance every N bars (daily -> weekly)
     top_frac: float = 0.2,
-    cost_per_side_pct: float = 0.089,   # fee + GST + majors slippage
+    cost_per_side_pct: float = 0.089,   # flat fallback if no per-symbol costs
+    cost_by_symbol: Optional[Dict[str, float]] = None,  # per-side % per symbol
     funding_bps_per_day: float = 3.0,   # conservative long funding drag
     regime_symbol: str = "BTCUSD",
     regime_ma: int = 140,         # bars (daily -> ~20 weeks)
@@ -93,13 +111,17 @@ def cross_sectional_momentum(
             if c0 and c1 and weights[s]:
                 day_ret += weights[s] * (c1 / c0 - 1)
         funding_cost = fund * sum(w for w in weights.values() if w > 0)
-        turnover = 0.0
+        cost = 0.0
         if i % rebal == 0:
             new_w = _targets(panel, i, syms, lookback, top_frac, btc,
                              regime_ma, use_regime)
-            turnover = sum(abs(new_w[s] - weights[s]) for s in syms)
+            if cost_by_symbol:
+                cost = sum(abs(new_w[s] - weights[s])
+                           * (cost_by_symbol.get(s, cost_per_side_pct) / 100.0)
+                           for s in syms)
+            else:
+                cost = sum(abs(new_w[s] - weights[s]) for s in syms) * (cost_per_side_pct / 100.0)
             weights = new_w
-        cost = turnover * (cost_per_side_pct / 100.0)
         net = day_ret - cost - funding_cost
         equity *= (1 + net)
         curve.append(equity)
