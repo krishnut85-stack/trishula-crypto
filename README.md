@@ -44,9 +44,15 @@ What's in place:
   / ILLUSTRATIVE so a placeholder is never mistaken for a real edge. `trishula/report.py`
   builds the payload and renders the page.
 
-Next (per build order): WebSocket L2 feed → dual-track tax ledger → safety rails
-→ one momentum engine end-to-end → ensemble/news/options/router → Telegram
-reporting.
+- **Paper engine (forward paper trading):** `scripts/paper_engine.py` runs the
+  validated Donchian-1h trend on the majors once per hour, keeping a persistent
+  paper portfolio (`trishula/paper_broker.py` → `data/paper_portfolio.json`) with
+  cash, positions, realised P&L, trade log and equity history that carry across
+  runs. Costs charged on every fill; optional Telegram pings (`trishula/notify.py`).
+  PAPER_MODE_HARD — no order-placement code exists; positions live only in JSON.
+
+Next (per build order): dual-track tax ledger → coordinator blending trend +
+momentum lanes → ensemble/news/options → live dashboard of the forward record.
 
 ## Quick start
 
