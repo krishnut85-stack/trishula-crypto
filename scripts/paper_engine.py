@@ -130,19 +130,23 @@ def main() -> int:
     # ---- gather latest candles + signals ----
     prices, signals, bars = {}, {}, {}
     for s in process:
+        ok = False
         try:
             if args.synthetic:
                 c = history.synthetic_candles(n=400, seed=abs(hash(s + str(now // 3600))) % 999 + 1,
                                               resolution="1h")
             else:
                 c = history.fetch_candles(s, RESOLUTION, days=15, use_cache=False)
-            if len(c) < DONCHIAN_PERIOD + 5:
-                continue
-            side, price, bar_t = latest_signal(c)
-            # a coin that dropped out of the universe is exited to flat
-            prices[s], signals[s], bars[s] = price, (side if s in universe else 0), bar_t
+            if len(c) >= DONCHIAN_PERIOD + 5:
+                side, price, bar_t = latest_signal(c)
+                # a coin that dropped out of the universe is exited to flat
+                prices[s], signals[s], bars[s] = price, (side if s in universe else 0), bar_t
+                pf.fetch_fails[s] = 0          # healthy fetch -> reset the fail counter
+                ok = True
         except DeltaError as exc:
             print(f"  ! {s}: fetch failed ({exc})")
+        if not ok:
+            pf.fetch_fails[s] = pf.fetch_fails.get(s, 0) + 1
 
     if not prices:
         print("no data this run; nothing to do.")
@@ -151,8 +155,16 @@ def main() -> int:
     # ---- size off current equity (compounding), then apply target sides ----
     sizing_equity = pf.equity(prices)
     acted = []
+    STALE_LIMIT = 3   # force-flatten a held coin after this many failed fetches (~hours)
     for s in process:
         if s not in prices:
+            # SAFETY: a held coin we can't price for several hours (thin/delisted)
+            # is force-flattened at its last known price so it can't linger forever.
+            held = pf.positions.get(s, {}).get("side", 0)
+            if held and pf.fetch_fails.get(s, 0) >= STALE_LIMIT:
+                px = pf.last_prices.get(s) or pf.positions[s]["entry"]
+                if pf.set_position(s, 0, px, now, 0.0) is not None:
+                    acted.append(f"{s}->FLAT(stale {pf.fetch_fails[s]}x)")
             continue
         # only act on a NEW bar (avoid double-processing within the same hour)
         if pf.last_bar.get(s) == bars[s]:
