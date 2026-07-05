@@ -29,14 +29,14 @@ try:
     from trishula.paper_broker import PaperPortfolio
     from trishula.notify import send_telegram
     from trishula.config import CONFIG
-    from trishula.delta_client import DeltaError
+    from trishula.delta_client import DeltaClient, DeltaError
 except ModuleNotFoundError:
     sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from trishula import history, strategies
     from trishula.paper_broker import PaperPortfolio
     from trishula.notify import send_telegram
     from trishula.config import CONFIG
-    from trishula.delta_client import DeltaError
+    from trishula.delta_client import DeltaClient, DeltaError
 
 HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE = os.path.join(HERE, "data", "paper_portfolio.json")
@@ -52,6 +52,25 @@ def latest_signal(candles):
     return positions[-1], candles[-1].c, candles[-1].t
 
 
+def get_top_liquid(n):
+    """Top-N live perps by 24h USD volume."""
+    cl = DeltaClient()
+    prods = cl.get_products()
+    perps = [p for p in prods if p.get("contract_type") == "perpetual_futures"
+             and p.get("state") == "live"]
+    ticks = cl.get_tickers()
+    vol = {}
+    for t in ticks:
+        s = t.get("symbol")
+        v = t.get("turnover_usd") or t.get("turnover") or t.get("volume") or 0
+        try:
+            vol[s] = float(v)
+        except (TypeError, ValueError):
+            vol[s] = 0.0
+    syms = [p["symbol"] for p in perps if p.get("symbol") in vol]
+    return sorted(syms, key=lambda s: vol.get(s, 0), reverse=True)[:n]
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Trishula paper engine (Donchian-1h)")
     ap.add_argument("--synthetic", action="store_true", help="offline smoke test")
@@ -59,6 +78,9 @@ def main() -> int:
     ap.add_argument("--quiet", action="store_true", help="no Telegram this run")
     ap.add_argument("--status", action="store_true",
                     help="just print the saved account (no fetch, no trade)")
+    ap.add_argument("--top", type=int, default=20,
+                    help="trade the top-N liquid perps by 24h volume (default 20)")
+    ap.add_argument("--symbols", default="", help="comma list to override the universe")
     args = ap.parse_args()
 
     if args.status:
@@ -88,13 +110,26 @@ def main() -> int:
 
     # PAPER_MODE_HARD: this engine is paper by construction; make it loud.
     now = int(time.time())
-    weight = 1.0 / len(SYMBOLS)
-
     pf = PaperPortfolio.load(STATE) or PaperPortfolio(capital=args.capital)
+
+    # ---- determine the traded universe: top-N liquid perps ----
+    if args.symbols:
+        universe = [s.strip().upper() for s in args.symbols.split(",") if s.strip()]
+    elif args.synthetic:
+        universe = (SYMBOLS + [f"ALT{i}USD" for i in range(args.top)])[:args.top]
+    else:
+        try:
+            universe = get_top_liquid(args.top)
+        except Exception as exc:  # noqa: BLE001
+            print(f"  ! universe fetch failed ({exc}); falling back to majors")
+            universe = SYMBOLS
+    held = [s for s, p in pf.positions.items() if p.get("side")]
+    process = list(dict.fromkeys(universe + held))   # trade universe + manage dropouts
+    weight = 1.0 / max(1, len(universe))
 
     # ---- gather latest candles + signals ----
     prices, signals, bars = {}, {}, {}
-    for s in SYMBOLS:
+    for s in process:
         try:
             if args.synthetic:
                 c = history.synthetic_candles(n=400, seed=abs(hash(s + str(now // 3600))) % 999 + 1,
@@ -104,7 +139,8 @@ def main() -> int:
             if len(c) < DONCHIAN_PERIOD + 5:
                 continue
             side, price, bar_t = latest_signal(c)
-            prices[s], signals[s], bars[s] = price, side, bar_t
+            # a coin that dropped out of the universe is exited to flat
+            prices[s], signals[s], bars[s] = price, (side if s in universe else 0), bar_t
         except DeltaError as exc:
             print(f"  ! {s}: fetch failed ({exc})")
 
@@ -115,7 +151,7 @@ def main() -> int:
     # ---- size off current equity (compounding), then apply target sides ----
     sizing_equity = pf.equity(prices)
     acted = []
-    for s in SYMBOLS:
+    for s in process:
         if s not in prices:
             continue
         # only act on a NEW bar (avoid double-processing within the same hour)
@@ -140,9 +176,11 @@ def main() -> int:
         pass
 
     # ---- report ----
-    sides = " ".join(f"{s}:{ {1:'L',0:'-',-1:'S'}[signals.get(s,0)] }" for s in SYMBOLS)
+    longs = sum(1 for s in universe if signals.get(s, 0) > 0)
+    shorts = sum(1 for s in universe if signals.get(s, 0) < 0)
     line = (f"TRISHULA paper · {time.strftime('%Y-%m-%d %H:%M UTC', time.gmtime(now))} "
-            f"· equity ${eq:,.2f} ({summ['return_pct']:+.2f}%) · {sides}")
+            f"· equity ${eq:,.2f} ({summ['return_pct']:+.2f}%) · universe {len(universe)} "
+            f"· {longs}L/{shorts}S · {len(summ['open_positions'])} open")
     print(line)
     if acted:
         print("  trades: " + ", ".join(acted))

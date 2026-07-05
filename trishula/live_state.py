@@ -168,9 +168,14 @@ class TrishulaLive:
     # ---- full state (matches Garuda build_state schema) ----
     def build_state(self):
         pf = PaperPortfolio.load(STATE)
+        held_all = [s for s, h in (pf.positions.items() if pf else [])
+                    if h.get("side")]
         profs = []
         for key, meta in PROFILES.items():
-            universe = MAJORS if key == "trend" else self.momentum_syms
+            if key == "trend":
+                universe = MAJORS + [s for s in held_all if s not in MAJORS]
+            else:
+                universe = self.momentum_syms
             positions = []
             day_pnl = 0.0
             if key == "trend" and pf:
