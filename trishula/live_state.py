@@ -195,10 +195,20 @@ class TrishulaLive:
             watch = [w for w in (self._watch(s, pf) for s in universe) if w]
 
             if key == "trend" and pf:
-                eq = pf.equity_history[-1]["equity"] if pf.equity_history else pf.capital
+                # LIVE equity = cash + unrealised at live prices (reconciles with P&L)
+                eq = pf.equity(self.prices)
                 cap = pf.capital
+                # day P&L from the ~24h-ago snapshot (≈ total for a young account)
+                cutoff = int(time.time()) - 86400
+                base = cap
+                for h in pf.equity_history:
+                    if h["t"] >= cutoff:
+                        base = h["equity"]
+                        break
+                day_pnl = eq - base
             else:
                 eq, cap = meta["capital"], meta["capital"]
+                day_pnl = 0.0
             green = sum(1 for x in positions if x["pnl"] > 0)
             profs.append({
                 "key": key, "name": meta["name"], "desc": meta["desc"],
@@ -224,8 +234,12 @@ class TrishulaLive:
         }
         totals["pnl_pct"] = round((totals["equity"] / totals["capital"] - 1) * 100, 2) \
             if totals["capital"] else 0.0
-        curve = [h["equity"] for h in (pf.equity_history if pf else [])]
-        totals["curve"] = curve or [totals["equity"]]
+        # combined equity curve = trend track record + the flat momentum capital,
+        # ending at the live combined equity so "now" matches the metric box
+        other_cap = sum(m["capital"] for k, m in PROFILES.items() if k != "trend")
+        curve = [round(h["equity"] + other_cap) for h in (pf.equity_history if pf else [])]
+        curve.append(round(totals["equity"]))
+        totals["curve"] = curve
         return {"live": True, "profiles": profs, "totals": totals,
                 "market_open": True, "market_status": "● OPEN · 24/7",
                 "last_scan": self.last_scan, "today": self.last_scan}
