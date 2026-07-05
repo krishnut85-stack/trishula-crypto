@@ -112,6 +112,40 @@ def bollinger_reversion(period: int = 20, k: float = 2.0) -> Callable:
     return strat
 
 
+def rsi2(low: float = 10, high: float = 90, trend_ma: int = 200) -> Callable:
+    """Connors-style RSI(2) mean-reversion with an optional trend filter.
+
+    Long when RSI(2) < low AND price is above the trend MA (buy dips in an
+    uptrend); short when RSI(2) > high AND price is below the trend MA (fade rips
+    in a downtrend); exit to flat when RSI crosses back past the 50 midline.
+    ``trend_ma=0`` disables the filter (pure symmetric RSI-2 reversion).
+    """
+    def strat(candles: List[Candle]) -> List[int]:
+        closes = [c.c for c in candles]
+        r = ind.rsi(closes, 2)
+        ma = ind.sma(closes, trend_ma) if trend_ma > 0 else [None] * len(closes)
+        pos: List[int] = []
+        cur = 0
+        for i in range(len(closes)):
+            if r[i] is None:
+                pos.append(0)
+                continue
+            up = trend_ma == 0 or (ma[i] is not None and closes[i] > ma[i])
+            dn = trend_ma == 0 or (ma[i] is not None and closes[i] < ma[i])
+            if cur <= 0 and r[i] < low and up:
+                cur = 1
+            elif cur >= 0 and r[i] > high and dn:
+                cur = -1
+            elif cur == 1 and r[i] > 50:
+                cur = 0
+            elif cur == -1 and r[i] < 50:
+                cur = 0
+            pos.append(cur)
+        return pos
+    strat.__name__ = f"rsi2_{int(low)}_{int(high)}_ma{trend_ma}"
+    return strat
+
+
 def ts_momentum(lookback: int = 720) -> Callable:
     """Time-series momentum: long if price is above its value ``lookback`` bars
     ago, short otherwise. The single-asset momentum the research calls robust.
@@ -148,6 +182,8 @@ def default_pool() -> List[Callable]:
         bollinger_reversion(20, 2.0),
         ts_momentum(168),
         ts_momentum(720),
+        rsi2(10, 90, 200),   # Connors RSI-2 with trend filter
+        rsi2(10, 90, 0),     # pure RSI-2 reversion, no filter
     ]
 
 
