@@ -56,7 +56,34 @@ def main() -> int:
     ap.add_argument("--synthetic", action="store_true", help="offline smoke test")
     ap.add_argument("--capital", type=float, default=CAPITAL)
     ap.add_argument("--quiet", action="store_true", help="no Telegram this run")
+    ap.add_argument("--status", action="store_true",
+                    help="just print the saved account (no fetch, no trade)")
     args = ap.parse_args()
+
+    if args.status:
+        pf = PaperPortfolio.load(STATE)
+        if not pf or not pf.equity_history:
+            print("no paper account yet — run the engine once first.")
+            return 0
+        eq = pf.equity_history[-1]["equity"]
+        ret = (eq / pf.capital - 1) * 100
+        closed = [t for t in pf.trades if t["action"] == "close"]
+        wins = [t for t in closed if t.get("pnl", 0) > 0]
+        wr = (len(wins) / len(closed) * 100) if closed else None
+        upd = time.strftime("%Y-%m-%d %H:%M UTC", time.gmtime(pf.updated or 0))
+        print("TRISHULA paper account (saved state — no fetch)")
+        print(f"  updated : {upd}")
+        print(f"  equity  : ${eq:,.2f} ({ret:+.2f}%) from ${pf.capital:,.0f}")
+        print(f"  realised: ${pf.realized:,.2f} · closed {len(closed)} · "
+              f"win {('%.0f%%' % wr) if wr is not None else 'n/a'}")
+        print("  positions:")
+        openp = [(s, p) for s, p in pf.positions.items() if p.get("side")]
+        for s, p in openp:
+            print(f"    {s}: {'LONG' if p['side'] > 0 else 'SHORT'} @ {p['entry']:,.2f}")
+        if not openp:
+            print("    (flat — all cash)")
+        print(f"  equity snapshots: {len(pf.equity_history)}")
+        return 0
 
     # PAPER_MODE_HARD: this engine is paper by construction; make it loud.
     now = int(time.time())
