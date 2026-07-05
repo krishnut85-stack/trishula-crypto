@@ -19,6 +19,7 @@ Offline smoke test:
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 import time
@@ -126,8 +127,17 @@ def main() -> int:
             acted.append(f"{s}->{ {1:'LONG',0:'FLAT',-1:'SHORT'}[changed] }")
 
     eq = pf.snapshot(prices, now)
+    pf.last_prices = prices
     pf.save(STATE, ts=now)
     summ = pf.summary(prices)
+
+    # regenerate the live dashboard HTML (Garuda-style static file)
+    try:
+        from trishula import paper_report
+        paper_report.write_dashboard(json.load(open(STATE)),
+                                     os.path.join(HERE, "dashboard", "paper.html"))
+    except Exception:
+        pass
 
     # ---- report ----
     sides = " ".join(f"{s}:{ {1:'L',0:'-',-1:'S'}[signals.get(s,0)] }" for s in SYMBOLS)

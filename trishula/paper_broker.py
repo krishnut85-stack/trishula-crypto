@@ -27,6 +27,7 @@ class PaperPortfolio:
         self.trades: List[dict] = []
         self.equity_history: List[dict] = []
         self.last_bar: Dict[str, int] = {}
+        self.last_prices: Dict[str, float] = {}
         self.created: Optional[int] = None
         self.updated: Optional[int] = None
 
@@ -44,6 +45,7 @@ class PaperPortfolio:
         p.trades = d.get("trades", [])
         p.equity_history = d.get("equity_history", [])
         p.last_bar = d.get("last_bar", {})
+        p.last_prices = d.get("last_prices", {})
         p.created = d.get("created")
         p.updated = d.get("updated")
         return p
@@ -60,7 +62,7 @@ class PaperPortfolio:
                 "cash": self.cash, "positions": self.positions,
                 "realized": self.realized, "trades": self.trades[-2000:],
                 "equity_history": self.equity_history[-5000:],
-                "last_bar": self.last_bar,
+                "last_bar": self.last_bar, "last_prices": self.last_prices,
                 "created": self.created, "updated": self.updated,
             }, fh, indent=2)
 
