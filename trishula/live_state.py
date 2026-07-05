@@ -83,10 +83,26 @@ class TrishulaLive:
                 except DeltaError:
                     continue
             cs = self.candles.get(s)
-            if cs:
+            if cs and s not in self.prices:
                 self.prices[s] = cs[-1].c
+        self._refresh_ticker_prices()          # live-ish prices each cycle
         self.last_scan = time.strftime("%Y-%m-%d", time.gmtime())
         self._last_full = time.time()
+
+    def _refresh_ticker_prices(self):
+        """Update last prices from /v2/tickers (one call, all symbols)."""
+        try:
+            for t in self.client.get_tickers():
+                s = t.get("symbol")
+                if s in self.candles:
+                    px = t.get("mark_price") or t.get("close") or t.get("spot_price")
+                    if px:
+                        try:
+                            self.prices[s] = float(px)
+                        except (TypeError, ValueError):
+                            pass
+        except DeltaError:
+            pass
 
     # ---- chart (matches Garuda chart schema) ----
     def refresh_chart(self, sym):
