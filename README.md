@@ -30,6 +30,13 @@ What's in place:
   Donchian breakout, Bollinger reversion, buy-hold), `backtest.py` (cost-aware
   walk-forward engine), `scorecard.py` (honest verdict vs buy-and-hold), and
   `scripts/run_backtest.py` (strategy leaderboard — "which strategy is working").
+- **Trishula Quant — two lanes:** `scripts/run_quant.py` runs both on the real
+  Delta universe. **Lane A** = cross-sectional momentum over the top-N perps
+  (long-only, weekly rebalance, BTC-regime filter → cash in bear) via
+  `trishula/portfolio.py`. **Lane B** = Donchian-1h trend on the majors
+  (short-capable). Reports full-period *and* out-of-sample. Also adds
+  `ts_momentum` to the single-asset pool so momentum competes with Donchian in
+  the `run_backtest.py` leaderboard.
 - **Live dashboard (wired to backtest):** `dashboard/cockpit.html` — a
   self-contained terminal cockpit. `run_backtest.py --dashboard` injects the real
   results (winner scorecard + equity curve, leaderboard, top trades, trade-outcome

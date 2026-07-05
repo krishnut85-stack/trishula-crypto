@@ -112,6 +112,24 @@ def bollinger_reversion(period: int = 20, k: float = 2.0) -> Callable:
     return strat
 
 
+def ts_momentum(lookback: int = 720) -> Callable:
+    """Time-series momentum: long if price is above its value ``lookback`` bars
+    ago, short otherwise. The single-asset momentum the research calls robust.
+    On 1h bars, 168 ~ 7 days, 720 ~ 30 days.
+    """
+    def strat(candles: List[Candle]) -> List[int]:
+        closes = [c.c for c in candles]
+        out: List[int] = []
+        for i in range(len(closes)):
+            if i < lookback:
+                out.append(0)
+            else:
+                out.append(1 if closes[i] > closes[i - lookback] else -1)
+        return out
+    strat.__name__ = f"ts_momentum_{lookback}"
+    return strat
+
+
 def buy_hold() -> Callable:
     def strat(candles: List[Candle]) -> List[int]:
         return [1] * len(candles)
@@ -128,6 +146,8 @@ def default_pool() -> List[Callable]:
         donchian_breakout(48),
         donchian_breakout(96),
         bollinger_reversion(20, 2.0),
+        ts_momentum(168),
+        ts_momentum(720),
     ]
 
 
