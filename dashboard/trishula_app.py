@@ -52,6 +52,7 @@ letter-spacing:.08em;margin-right:8px;border:1px solid #1c2521;}
 .tgreen{color:#37d07f;} .tgold{color:#e0a63b;} .tgrey{color:#7c8983;}
 .metrics{display:grid;grid-template-columns:repeat(5,1fr);gap:1px;background:#1c2521;
 border:1px solid #1c2521;border-radius:10px;overflow:hidden;margin:10px 0 6px;}
+@media(max-width:760px){.metrics{grid-template-columns:repeat(2,1fr);}}
 .mcell{background:#0b100e;padding:14px 16px;}
 .mlbl{color:#7c8983;font-size:.68rem;letter-spacing:.1em;text-transform:uppercase;}
 .mval{font-size:1.5rem;font-weight:700;margin-top:6px;font-variant-numeric:tabular-nums;}
@@ -157,8 +158,8 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ---- signals table ----
-st.markdown("### Signals · Donchian-1h trend")
+# ---- signals table (traded majors) ----
+st.markdown("### Traded · Donchian-1h trend (BTC / ETH / SOL)")
 rows = []
 for s in SYMBOLS:
     dd = daily(s)
@@ -184,47 +185,170 @@ st.markdown(
     "<th>1D</th><th>1W</th><th>1M</th><th>position</th></tr></thead><tbody>"
     + "".join(rows) + "</tbody></table>", unsafe_allow_html=True)
 
-# ---- candlestick chart with Donchian channel ----
-st.markdown("### Chart · daily candles + Donchian channel")
-sym = st.selectbox("symbol", SYMBOLS, label_visibility="collapsed")
+# ---- universe scanner (top-N) ----
+st.markdown("### Universe scanner · top Delta perps")
+sc1, sc2, sc3 = st.columns([1, 1.5, 2])
+top_n = sc1.number_input("coins", 10, 250, 200, step=10, label_visibility="collapsed")
+flt = sc2.radio("filter", ["ALL", "LONG", "SHORT", "HELD"], horizontal=True, label_visibility="collapsed")
+search = sc3.text_input("search", "", placeholder="search symbol…", label_visibility="collapsed")
+
+
+@st.cache_data(ttl=600, show_spinner="scanning universe (first load ~1 min)…")
+def scan(n):
+    from trishula.delta_client import DeltaClient
+    from trishula.history import Candle
+    try:
+        cl = DeltaClient()
+        prods = cl.get_products()
+        ticks = cl.get_tickers()
+    except Exception:
+        return []
+    perps = [p for p in prods if p.get("contract_type") == "perpetual_futures"
+             and p.get("state") == "live"]
+    vol = {}
+    for t in ticks:
+        s = t.get("symbol")
+        v = t.get("turnover_usd") or t.get("turnover") or t.get("volume") or 0
+        try:
+            vol[s] = float(v)
+        except Exception:
+            vol[s] = 0.0
+    syms = [p["symbol"] for p in perps if p.get("symbol") in vol]
+    syms = sorted(syms, key=lambda s: vol.get(s, 0), reverse=True)[:int(n)]
+    out = []
+    for s in syms:
+        dd = daily(s)
+        if len(dd) < 25:
+            continue
+        cl2 = [x[4] for x in dd]
+        try:
+            sig = strategies.donchian_breakout(20)([Candle(*x) for x in dd])[-1]
+        except Exception:
+            sig = 0
+        out.append({"symbol": s, "vol": vol.get(s, 0) / 1e6, "sig": sig, "ltp": cl2[-1],
+                    "d1": pct(cl2, 1), "d7": pct(cl2, 7), "d30": pct(cl2, 30)})
+    return out
+
+
+uni = scan(top_n)
+held_syms = {s for s, p in positions.items() if p.get("side")}
+
+
+def _keep(r):
+    if flt == "LONG" and r["sig"] <= 0:
+        return False
+    if flt == "SHORT" and r["sig"] >= 0:
+        return False
+    if flt == "HELD" and r["symbol"] not in held_syms:
+        return False
+    if search and search.upper() not in r["symbol"]:
+        return False
+    return True
+
+
+def _sig(v):
+    return ('<span class="long">LONG</span>' if v > 0 else
+            '<span class="short">SHORT</span>' if v < 0 else '<span class="flat">FLAT</span>')
+
+
+def _cell(v):
+    return "<td class='tgrey'>—</td>" if v is None else f"<td class='{'pos' if v>=0 else 'neg'}'>{v:+.2f}%</td>"
+
+
+shown = [r for r in uni if _keep(r)]
+urows = []
+for r in shown:
+    held = "🟢" if r["symbol"] in held_syms else ""
+    urows.append(f"<tr><td><b>{r['symbol']}</b> {held}</td><td>{_sig(r['sig'])}</td>"
+                 f"<td>{r['ltp']:,.4f}</td>{_cell(r['d1'])}{_cell(r['d7'])}{_cell(r['d30'])}"
+                 f"<td class='tgrey'>{r['vol']:,.0f}</td></tr>")
+if urows:
+    st.markdown(
+        "<div style='max-height:480px;overflow:auto;border:1px solid #141a17;border-radius:8px'>"
+        "<table class='sig'><thead><tr><th>symbol</th><th>signal</th><th>LTP</th>"
+        "<th>1D</th><th>1W</th><th>1M</th><th>vol$mn</th></tr></thead><tbody>"
+        + "".join(urows) + "</tbody></table></div>", unsafe_allow_html=True)
+    st.caption(f"{len(shown)} of {len(uni)} coins · daily 20-day Donchian scan · "
+               "🟢 = in the paper book · engine trades BTC/ETH/SOL on 1h")
+else:
+    st.caption("scanning… (first load pulls the universe, ~1 min) — or no matches for this filter.")
+
+# ---- candlestick chart with Donchian channel + MA + RSI-2 ----
+st.markdown("### Chart · daily candles + Donchian + RSI-2")
+csel, cbtn = st.columns([3, 1])
+chart_syms = [r["symbol"] for r in uni] or SYMBOLS
+sym = csel.selectbox("symbol", chart_syms, label_visibility="collapsed")
+cbtn.link_button("↗ TradingView", f"https://www.tradingview.com/chart/?symbol={sym}")
 dd = daily(sym)
 if len(dd) > 30:
     highs = [x[2] for x in dd]
     lows = [x[3] for x in dd]
+    closes = [x[4] for x in dd]
     up = indicators.rolling_max(highs, 20)
     lo = indicators.rolling_min(lows, 20)
+    ma20 = indicators.sma(closes, 20)
+    ma50 = indicators.sma(closes, 50)
+    rsi2 = indicators.rsi(closes, 2)
+
+    def line(series):
+        return [{"time": int(dd[i][0]), "value": series[i]}
+                for i in range(len(dd)) if series[i] is not None]
+
     candles = [{"time": int(x[0]), "open": x[1], "high": x[2], "low": x[3], "close": x[4]} for x in dd]
-    upper = [{"time": int(dd[i][0]), "value": up[i]} for i in range(len(dd)) if up[i] is not None]
-    lower = [{"time": int(dd[i][0]), "value": lo[i]} for i in range(len(dd)) if lo[i] is not None]
     vol = [{"time": int(x[0]), "value": x[5],
             "color": "#1f5c42" if x[4] >= x[1] else "#5c2a2d"} for x in dd]
-    tmpl = """
-<div id="chart" style="height:380px;width:100%"></div>
+
+    price_tmpl = """
+<div id="pc" style="height:360px;width:100%"></div>
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 <script>
 (function(){
-  if(!window.LightweightCharts){document.getElementById('chart').innerHTML='<p style="color:#7c8983;font-family:monospace">chart library blocked — check network</p>';return;}
-  var chart=LightweightCharts.createChart(document.getElementById('chart'),{
+  if(!window.LightweightCharts){document.getElementById('pc').innerHTML='<p style="color:#7c8983;font-family:monospace">chart blocked — network?</p>';return;}
+  var c=LightweightCharts.createChart(document.getElementById('pc'),{
     layout:{background:{color:'#070a09'},textColor:'#7c8983'},
     grid:{vertLines:{color:'#141a17'},horzLines:{color:'#141a17'}},
     rightPriceScale:{borderColor:'#1c2521'},timeScale:{borderColor:'#1c2521',timeVisible:false},
-    height:380,autoSize:true});
-  var cs=chart.addCandlestickSeries({upColor:'#37d07f',downColor:'#e5484d',borderVisible:false,wickUpColor:'#37d07f',wickDownColor:'#e5484d'});
+    crosshair:{mode:0},height:360,autoSize:true});
+  var cs=c.addCandlestickSeries({upColor:'#37d07f',downColor:'#e5484d',borderVisible:false,wickUpColor:'#37d07f',wickDownColor:'#e5484d'});
   cs.setData(__CANDLES__);
-  var u=chart.addLineSeries({color:'#ef7d4b',lineWidth:1,lastValueVisible:false}); u.setData(__UPPER__);
-  var l=chart.addLineSeries({color:'#3aa0ff',lineWidth:1,lastValueVisible:false}); l.setData(__LOWER__);
-  var v=chart.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:''}); v.setData(__VOL__);
-  v.priceScale().applyOptions({scaleMargins:{top:0.82,bottom:0}});
-  chart.timeScale().fitContent();
+  c.addLineSeries({color:'#ef7d4b',lineWidth:1,lastValueVisible:false,title:'Donch U'}).setData(__UPPER__);
+  c.addLineSeries({color:'#3aa0ff',lineWidth:1,lastValueVisible:false,title:'Donch L'}).setData(__LOWER__);
+  c.addLineSeries({color:'#c678dd',lineWidth:1,lastValueVisible:false,title:'MA20'}).setData(__MA20__);
+  c.addLineSeries({color:'#7fb2ff',lineWidth:1,lastValueVisible:false,title:'MA50'}).setData(__MA50__);
+  var v=c.addHistogramSeries({priceFormat:{type:'volume'},priceScaleId:''}); v.setData(__VOL__);
+  v.priceScale().applyOptions({scaleMargins:{top:0.84,bottom:0}});
+  c.timeScale().fitContent();
 })();
 </script>"""
-    chart_html = (tmpl.replace("__CANDLES__", json.dumps(candles))
-                  .replace("__UPPER__", json.dumps(upper))
-                  .replace("__LOWER__", json.dumps(lower))
+    rsi_tmpl = """
+<div id="rc" style="height:150px;width:100%"></div>
+<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+(function(){
+  if(!window.LightweightCharts){return;}
+  var c=LightweightCharts.createChart(document.getElementById('rc'),{
+    layout:{background:{color:'#070a09'},textColor:'#7c8983'},
+    grid:{vertLines:{color:'#141a17'},horzLines:{color:'#141a17'}},
+    rightPriceScale:{borderColor:'#1c2521'},timeScale:{borderColor:'#1c2521',timeVisible:false},
+    height:150,autoSize:true});
+  var r=c.addLineSeries({color:'#e0a63b',lineWidth:2,lastValueVisible:true});
+  r.setData(__RSI__);
+  r.createPriceLine({price:90,color:'#e5484d',lineStyle:2,lineWidth:1,axisLabelVisible:true,title:'SELL 90'});
+  r.createPriceLine({price:10,color:'#37d07f',lineStyle:2,lineWidth:1,axisLabelVisible:true,title:'BUY 10'});
+  c.timeScale().fitContent();
+})();
+</script>"""
+    price_html = (price_tmpl.replace("__CANDLES__", json.dumps(candles))
+                  .replace("__UPPER__", json.dumps(line(up)))
+                  .replace("__LOWER__", json.dumps(line(lo)))
+                  .replace("__MA20__", json.dumps(line(ma20)))
+                  .replace("__MA50__", json.dumps(line(ma50)))
                   .replace("__VOL__", json.dumps(vol)))
-    st.components.v1.html(chart_html, height=400)
-    st.caption("orange = 20-day Donchian upper · blue = lower · volume bars. "
-               "The engine trades the 1h Donchian; this daily view is for context.")
+    st.components.v1.html(price_html, height=376)
+    st.components.v1.html(rsi_tmpl.replace("__RSI__", json.dumps(line(rsi2))), height=160)
+    st.caption("orange/blue = 20-day Donchian channel · magenta = MA20 · light-blue = MA50 · "
+               "volume bars · yellow = RSI-2 (BUY <10 oversold / SELL >90 overbought). "
+               "Drag = pan, scroll = zoom. Engine trades the 1h Donchian; this is the daily view.")
 else:
     st.caption("Not enough candle history yet — check back after the next fetch.")
 
