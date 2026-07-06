@@ -143,7 +143,7 @@ const TOKEN=new URLSearchParams(location.search).get('token')||'';
 const prev={};let DATA=null,curSym=null,FILTER='all',SORT={key:'sym',dir:1};
 function setSort(k){if(SORT.key===k)SORT.dir=-SORT.dir;else{SORT.key=k;SORT.dir=(k==='sym'?1:-1);}render(DATA);}
 function sortArrow(k){return SORT.key===k?(SORT.dir>0?' ▲':' ▼'):'';}
-function fmtCr(v){if(v==null)return '—';if(v>=1000)return '$'+(v/1000).toFixed(2)+'B';if(v>=1)return '$'+Math.round(v)+'M';return '$'+Math.round(v*1000)+'K';}
+function fmtCr(v){if(v==null)return '—';if(v>=1e6)return '$'+(v/1e6).toFixed(2)+'T';if(v>=1000)return '$'+(v/1000).toFixed(1)+'B';if(v>=1)return '$'+Math.round(v)+'M';return '$'+Math.round(v*1000)+'K';}
 const LABEL={trend:'TREND',momentum:'WATCH'};
 function money(v){return "$"+Math.round(v).toLocaleString('en-US');}
 function pct(v){return(v==null?'—':(v>=0?"+":"")+(+v).toFixed(2)+"%");}
@@ -262,7 +262,7 @@ function updateQuote(sym){
  const x=f.x,w=watchItem(sym)||x;
  const cc=v=>v==null?'muted':(v>=0?'g':'r');
  el.innerHTML=`<b>${x.ltp.toFixed(2)}</b> <span class="${cc(x.chg)}">${pct(x.chg)}</span> <span class=muted>· RSI-2 ${x.rsi2==null?'—':x.rsi2}</span>`;
- const lmc=w.mcap==null?null:w.mcap*(1+(w.chg||0)/100);
+ const lmc=w.mcap;
  const tech=`<div class=tech>1D <b class="${cc(w.chg)}">${w.chg==null?'—':pct(w.chg)}</b> · 1W <b class="${cc(w.chg_w)}">${w.chg_w==null?'—':pct(w.chg_w)}</b> · 1M <b class="${cc(w.chg_m)}">${w.chg_m==null?'—':pct(w.chg_m)}</b> · 52W H <b>${w.hi52==null?'—':w.hi52}</b> L <b>${w.lo52==null?'—':w.lo52}</b> · Mcap <b>${fmtCr(lmc)}</b></div>`;
  sg.innerHTML=(f.held
   ? `<h4>${LABEL[f.p.key]} · position</h4>Holding <b>${x.qty}</b> @ $${x.entry.toFixed(2)} · P&L <b class="${cc(x.pnl)}">${(x.pnl>=0?'+':'')+money(x.pnl)}</b>`
@@ -309,7 +309,7 @@ function render(d){
     let av=a[SORT.key],bv=b[SORT.key];av=(av==null?-Infinity:av);bv=(bv==null?-Infinity:bv);
     return (av-bv)*SORT.dir;});
   const th=(k,label)=>`<th class="sorth${k==='sym'?' sym':''}" onclick="setSort('${k}')">${label}${sortArrow(k)}</th>`;
-  html+=`<table class=wl><tr>${th('sym','SYMBOL')}${th('qty','QTY')}${th('rsi2','RSI-2')}${th('ltp','LTP')}${th('chg','1D')}${th('chg_w','1W')}${th('chg_m','1M')}${th('mcap','VOL')}${th('pnl','P&L')}</tr>`;
+  html+=`<table class=wl><tr>${th('sym','SYMBOL')}${th('qty','QTY')}${th('rsi2','RSI-2')}${th('ltp','LTP')}${th('chg','1D')}${th('chg_w','1W')}${th('chg_m','1M')}${th('mcap','MCAP')}${th('pnl','P&L')}</tr>`;
   if(!watch.length)html+=`<tr><td colspan=9 class=muted style=text-align:center>${q?'no match in '+p.name:'loading live prices…'}</td></tr>`;
   const pcell=v=>`<td class="${v==null?'muted':(v>=0?'g':'r')}">${v==null?'—':pct(v)}</td>`;
   watch.forEach(x=>{const key=p.key+x.sym,pv=prev[key],cls=pv==null?'':(x.ltp>pv?'flash-up':(x.ltp<pv?'flash-dn':''));prev[key]=x.ltp;
@@ -320,7 +320,7 @@ function render(d){
     <td class=a>${x.rsi2==null?'—':x.rsi2}</td>
     <td class="${cls}">${x.ltp.toFixed(2)}</td>
     ${pcell(x.chg)}${pcell(x.chg_w)}${pcell(x.chg_m)}
-    <td class=muted>${fmtCr(x.mcap==null?null:x.mcap*(1+(x.chg||0)/100))}</td>
+    <td class=muted>${x.mcap==null?'—':fmtCr(x.mcap)}</td>
     <td class="${x.pnl==null?'muted':(x.pnl>=0?'g':'r')}">${x.pnl==null?'—':(x.pnl>=0?'+':'')+money(x.pnl)}</td></tr>`;});
   html+=`</table>`;
  });

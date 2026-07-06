@@ -9,8 +9,10 @@ PAPER ONLY — reads the paper book, never places an order.
 """
 from __future__ import annotations
 
+import json
 import os
 import time
+import urllib.request
 from typing import Dict, List
 
 from . import history, indicators, strategies
@@ -29,6 +31,16 @@ PROFILES = {
 }
 MAJORS = ["BTCUSD", "ETHUSD", "SOLUSD"]
 
+# CoinGecko is the only free source of true circulating market cap (Delta only
+# gives 24h volume). Best-effort: if it's unreachable the mcap column just falls
+# back to blank and the dashboard keeps working.
+CG_URL = ("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd"
+          "&order=market_cap_desc&per_page=250&page=1&sparkline=false")
+MCAP_TTL = 900   # refresh caps at most every 15 min
+
+# a few Delta symbols whose base ticker doesn't map 1:1 to CoinGecko's symbol
+_BASE_ALIAS = {"XBT": "BTC"}
+
 
 def _pct(cl, n):
     return round((cl[-1] / cl[-n - 1] - 1) * 100, 2) if len(cl) > n and cl[-n - 1] > 0 else None
@@ -45,6 +57,8 @@ class TrishulaLive:
         self.momentum_syms: List[str] = []
         self.last_scan = ""
         self._last_full = 0.0
+        self.mcaps: Dict[str, float] = {}   # base ticker (e.g. "BTC") -> market cap USD
+        self._mcap_ts = 0.0
 
     # ---- data ----
     def _universe(self):
@@ -70,8 +84,39 @@ class TrishulaLive:
         self.momentum_syms = mom
         return MAJORS + mom
 
+    def _market_caps(self):
+        """Best-effort circulating market cap (USD) per base ticker from CoinGecko.
+        Cached ~15 min; silently keeps the last good map if the call fails."""
+        if self.mcaps and (time.time() - self._mcap_ts) < MCAP_TTL:
+            return
+        try:
+            req = urllib.request.Request(CG_URL, headers={"User-Agent": "trishula"})
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                rows = json.load(resp)
+            caps = {}
+            for r in rows:
+                sym = (r.get("symbol") or "").upper()
+                mc = r.get("market_cap")
+                if sym and mc:
+                    caps[sym] = float(mc)
+            if caps:
+                self.mcaps = caps
+                self._mcap_ts = time.time()
+        except Exception:          # network/parse — keep the last good map
+            pass
+
+    def _base(self, sym):
+        """Delta symbol -> CoinGecko base ticker (strip USD/USDT quote, alias)."""
+        b = sym
+        for q in ("USDT", "USD"):
+            if b.endswith(q):
+                b = b[: -len(q)]
+                break
+        return _BASE_ALIAS.get(b, b)
+
     def refresh(self, full: bool = False):
         """Refresh candles (daily) + prices. `full` re-pulls the universe."""
+        self._market_caps()
         if full or not self.momentum_syms:
             universe = self._universe()
         else:
@@ -154,12 +199,14 @@ class TrishulaLive:
         r = indicators.rsi(closes, 2)
         h = pf.positions.get(sym) if pf else None
         held = bool(h and h.get("side"))
+        mc = self.mcaps.get(self._base(sym))    # circulating market cap (USD)
         return {
             "sym": sym, "ltp": round(ltp, 4), "chg": chg,
             "chg_w": _pct(closes, 7), "chg_m": _pct(closes, 30),
             "hi52": round(max(win), 4) if win else None,
             "lo52": round(min(win), 4) if win else None,
-            "mcap": self.vol_mn.get(sym),      # 24h volume ($mn) in the mcap column
+            "mcap": (round(mc / 1e6) if mc else None),   # market cap ($mn); None => "—"
+            "vol": self.vol_mn.get(sym),                  # 24h volume ($mn), kept for sort/filter
             "rsi2": round(r[-1], 1) if r and r[-1] is not None else None,
             "held": held, "qty": (h["units"] if held else None),
             "pnl": (round(h["side"] * h["units"] * (ltp - h["entry"]), 2) if held else None),
