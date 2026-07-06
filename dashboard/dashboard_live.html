@@ -298,7 +298,7 @@ function render(d){
   const rows=p.positions.filter(x=>!q||x.sym.includes(q));
   const wl=p.win_kind==='live'?'live':'avg';
   const win=p.win==null?'—':p.win+'% <span class=muted>'+wl+'</span>';
-  const green=p.win_open==null?'':` · <b class=g>${p.win_open}%</b> up now`;
+  const green=p.win_open==null?'':` · <span class=muted>${p.win_open}% of open in profit</span>`;
   html+=`<div class=bothdr>
     <div class=nm>${p.name} <span class=d>· ${p.desc}</span></div>
     <div class=bstat>${money(p.equity)} · <b class="${p.pnl_pct>=0?'g':'r'}">${pct(p.pnl_pct)}</b> · WIN <b class=a>${win}</b>${green} · ${p.positions.length} pos</div>
