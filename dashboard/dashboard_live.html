@@ -92,7 +92,7 @@ table{width:100%;border-collapse:collapse;font-size:12px}
       <div class=wtabs>
         <span class="wtab on" data-f=all onclick="setFilter('all',this)">ALL</span>
         <span class=wtab data-f=trend onclick="setFilter('trend',this)">TREND</span>
-        <span class=wtab data-f=momentum onclick="setFilter('momentum',this)">MOMENTUM</span>
+        <span class=wtab data-f=momentum onclick="setFilter('momentum',this)">WATCH</span>
         <input class=wsearch id=search placeholder="search…" oninput="render(DATA)">
       </div>
       <div class=listwrap id=list></div>
@@ -144,7 +144,7 @@ const prev={};let DATA=null,curSym=null,FILTER='all',SORT={key:'sym',dir:1};
 function setSort(k){if(SORT.key===k)SORT.dir=-SORT.dir;else{SORT.key=k;SORT.dir=(k==='sym'?1:-1);}render(DATA);}
 function sortArrow(k){return SORT.key===k?(SORT.dir>0?' ▲':' ▼'):'';}
 function fmtCr(v){if(v==null)return '—';if(v>=1000)return '$'+(v/1000).toFixed(2)+'B';if(v>=1)return '$'+Math.round(v)+'M';return '$'+Math.round(v*1000)+'K';}
-const LABEL={trend:'TREND',momentum:'MOMENTUM'};
+const LABEL={trend:'TREND',momentum:'WATCH'};
 function money(v){return "$"+Math.round(v).toLocaleString('en-US');}
 function pct(v){return(v==null?'—':(v>=0?"+":"")+(+v).toFixed(2)+"%");}
 function setFilter(f,el){FILTER=f;document.querySelectorAll('.wtab').forEach(t=>t.classList.remove('on'));el.classList.add('on');render(DATA);}

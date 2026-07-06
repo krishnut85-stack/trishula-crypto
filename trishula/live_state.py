@@ -21,10 +21,11 @@ HERE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 STATE = os.path.join(HERE, "data", "paper_portfolio.json")
 
 PROFILES = {
-    "trend": {"name": "Trishula-Trend", "desc": "donchian-1h · majors",
+    "trend": {"name": "Trishula-Trend", "desc": "donchian-1h · top-20 liquid · TRADED",
               "proven_win": 39.0, "proven_ret": 1.7, "capital": 10000.0},
-    "momentum": {"name": "Trishula-Mom", "desc": "xs-momentum · top perps",
-                 "proven_win": 0.0, "proven_ret": 0.0, "capital": 10000.0},
+    # WATCHLIST ONLY — not traded. capital 0 so it never inflates combined equity.
+    "momentum": {"name": "Watchlist", "desc": "top perps · scan only · NOT traded",
+                 "proven_win": 0.0, "proven_ret": 0.0, "capital": 0.0},
 }
 MAJORS = ["BTCUSD", "ETHUSD", "SOLUSD"]
 
