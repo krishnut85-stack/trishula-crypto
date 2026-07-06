@@ -38,8 +38,16 @@ CG_URL = ("https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd"
           "&order=market_cap_desc&per_page=250&page=1&sparkline=false")
 MCAP_TTL = 900   # refresh caps at most every 15 min
 
-# a few Delta symbols whose base ticker doesn't map 1:1 to CoinGecko's symbol
-_BASE_ALIAS = {"XBT": "BTC"}
+# Delta base tickers that don't map 1:1 to CoinGecko's symbol. The 1000×/1M×
+# wrapper perps price a contract on N tokens, but the COIN's market cap is the
+# same regardless of the contract multiplier, so we map to the plain ticker.
+_BASE_ALIAS = {
+    "XBT": "BTC",
+    "1000PEPE": "PEPE", "1000SHIB": "SHIB", "1000BONK": "BONK",
+    "1000FLOKI": "FLOKI", "1000RATS": "RATS", "1000SATS": "SATS",
+    "1000LUNC": "LUNC", "1000XEC": "XEC", "1000CAT": "CAT",
+    "1000000MOG": "MOG", "1MBABYDOGE": "BABYDOGE",
+}
 
 
 def _pct(cl, n):
@@ -112,7 +120,13 @@ class TrishulaLive:
             if b.endswith(q):
                 b = b[: -len(q)]
                 break
-        return _BASE_ALIAS.get(b, b)
+        if b in _BASE_ALIAS:
+            return _BASE_ALIAS[b]
+        # generic fallback for unlisted multiplier wrappers (1000XXX / 1MXXX)
+        for pre in ("1000000", "1000", "1M"):
+            if b.startswith(pre) and len(b) > len(pre):
+                return b[len(pre):]
+        return b
 
     def refresh(self, full: bool = False):
         """Refresh candles (daily) + prices. `full` re-pulls the universe."""
